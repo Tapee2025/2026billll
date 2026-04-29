@@ -69,17 +69,24 @@ DEFAULT_BOX_FIELDS: Dict[str, Dict[str, Any]] = {
 
 DEFAULT_LINE_ITEMS: Dict[str, Any] = {
     "label": "Line Items (per row)",
-    "first_row_top": 17.5,    # top y of row 1 baseline area
-    "row_height": 0.6,        # cm between rows
+    "first_row_top": 18.4,    # top y of row 1 baseline area (where MT/bags/rate/amount print)
+    "row_height": 0.55,       # cm between rows
     "max_rows": 8,
     "font_size": 11,
     "bold": True,
     "columns": {
-        "mt":         {"label": "MT",         "left": 8.7},
-        "no_of_bags": {"label": "No. of Bags","left": 10.5},
-        "rate_per_mt":{"label": "Rate Per MT","left": 12.7},
-        "amount":     {"label": "Amount",     "left": 16.7},
+        # product prints above HSN code → negative top_offset lifts it within the same row
+        "product":    {"label": "Product Name", "left": 2.5,  "top_offset": -0.7},
+        "mt":         {"label": "MT",           "left": 8.7,  "top_offset": 0.0},
+        "no_of_bags": {"label": "No. of Bags",  "left": 10.5, "top_offset": 0.0},
+        "rate_per_mt":{"label": "Rate Per MT",  "left": 12.7, "top_offset": 0.0},
+        "amount":     {"label": "Amount",       "left": 16.7, "top_offset": 0.0},
     },
+}
+
+DEFAULT_CALCULATION = {
+    "bags_per_mt": 20,           # 1 MT = 20 bags of 50kg
+    "gst_percent": 18.0,         # CGST + SGST combined (1.18 multiplier)
 }
 
 DEFAULT_SETTINGS = {
@@ -87,6 +94,7 @@ DEFAULT_SETTINGS = {
     "single_fields": DEFAULT_SINGLE_FIELDS,
     "box_fields": DEFAULT_BOX_FIELDS,
     "line_items": DEFAULT_LINE_ITEMS,
+    "calculation": DEFAULT_CALCULATION,
 }
 
 
@@ -116,6 +124,7 @@ class LineColumnCfg(BaseModel):
     model_config = ConfigDict(extra="ignore")
     label: str
     left: float
+    top_offset: float = 0.0
 
 
 class LineItemsCfg(BaseModel):
@@ -129,15 +138,23 @@ class LineItemsCfg(BaseModel):
     columns: Dict[str, LineColumnCfg]
 
 
+class CalculationCfg(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    bags_per_mt: float = 20
+    gst_percent: float = 18.0
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="ignore")
     single_fields: Dict[str, SingleFieldCfg]
     box_fields: Dict[str, BoxFieldCfg]
     line_items: LineItemsCfg
+    calculation: CalculationCfg = CalculationCfg()
 
 
 class LineItemRow(BaseModel):
     model_config = ConfigDict(extra="ignore")
+    product: Optional[str] = ""
     mt: Optional[str] = ""
     no_of_bags: Optional[str] = ""
     rate_per_mt: Optional[str] = ""
@@ -169,6 +186,18 @@ async def get_settings():
     doc = await db.invoice_settings.find_one({"key": "default"}, {"_id": 0})
     if not doc:
         return DEFAULT_SETTINGS
+    # Backfill any new fields added after a previous save (calculation, product column, top_offset)
+    if "calculation" not in doc:
+        doc["calculation"] = DEFAULT_CALCULATION
+    li = doc.get("line_items") or {}
+    cols = li.get("columns") or {}
+    if "product" not in cols:
+        cols["product"] = DEFAULT_LINE_ITEMS["columns"]["product"]
+        li["columns"] = cols
+        doc["line_items"] = li
+    for k, v in cols.items():
+        if "top_offset" not in v:
+            v["top_offset"] = 0.0
     return doc
 
 
@@ -277,7 +306,8 @@ async def generate_pdf(req: GeneratePdfRequest):
                 value = row_dict.get(col_key, "") or ""
                 if value == "":
                     continue
-                _draw_text(c, value, top_cm=row_top, left_cm=col_cfg["left"],
+                top_offset = col_cfg.get("top_offset", 0.0) if isinstance(col_cfg, dict) else 0.0
+                _draw_text(c, value, top_cm=row_top + top_offset, left_cm=col_cfg["left"],
                            font_size=font_size, bold=bold)
 
     c.showPage()

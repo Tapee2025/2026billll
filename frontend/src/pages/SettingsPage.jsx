@@ -365,11 +365,19 @@ export default function SettingsPage() {
           </div>
           <Separator />
           <div className="space-y-3">
-            <div className="text-sm font-semibold">Column Left Positions</div>
+            <div className="text-sm font-semibold">
+              Column Positions (per row)
+            </div>
+            <div className="text-xs text-muted-foreground">
+              <strong>Left</strong> = horizontal position. <strong>Top
+              Offset</strong> = vertical adjustment relative to row baseline
+              (use negative values for fields like Product Name that print
+              above the HSN code).
+            </div>
             {Object.entries(settings.line_items.columns).map(([key, col]) => (
               <div
                 key={key}
-                className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center"
+                className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
                 data-testid={`col-row-${key}`}
               >
                 <div className="md:col-span-4 text-sm font-medium">
@@ -386,8 +394,70 @@ export default function SettingsPage() {
                     testId={`col-left-${key}`}
                   />
                 </div>
+                <div className="md:col-span-4">
+                  <Label className="text-xs uppercase">Top Offset</Label>
+                  <NumberInput
+                    value={col.top_offset ?? 0}
+                    onChange={(v) =>
+                      updateColumn(key, { top_offset: v })
+                    }
+                    testId={`col-topoff-${key}`}
+                  />
+                </div>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="calc-card">
+        <CardHeader>
+          <CardTitle>Calculation Rules</CardTitle>
+          <CardDescription>
+            Used to auto-calculate MT, Rate per MT, Amount and GST. Defaults: 1
+            MT = 20 bags · 18% GST (split equally between Central and State).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs uppercase">Bags per MT</Label>
+              <NumberInput
+                value={settings.calculation?.bags_per_mt ?? 20}
+                onChange={(v) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    calculation: {
+                      ...(prev.calculation || {}),
+                      bags_per_mt: v,
+                    },
+                  }))
+                }
+                step={1}
+                suffix="bags"
+                testId="calc-bags-per-mt"
+              />
+            </div>
+            <div>
+              <Label className="text-xs uppercase">
+                Total GST % (CGST + SGST)
+              </Label>
+              <NumberInput
+                value={settings.calculation?.gst_percent ?? 18}
+                onChange={(v) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    calculation: {
+                      ...(prev.calculation || {}),
+                      gst_percent: v,
+                    },
+                  }))
+                }
+                step={0.5}
+                suffix="%"
+                testId="calc-gst-percent"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

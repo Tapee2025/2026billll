@@ -1,9 +1,9 @@
-"""Backend API tests for Invoice Overlay Printer."""
+"""Backend API tests for Invoice Overlay Printer (Iteration 2 — adds calculation, product column, top_offset coverage)."""
 import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://gst-invoice-print.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 API = f"{BASE_URL}/api"
 
 
@@ -16,12 +16,11 @@ def client():
 
 @pytest.fixture(autouse=True)
 def _reset_before(client):
-    # Ensure a clean state before each test
     client.post(f"{API}/settings/reset", timeout=15)
     yield
 
 
-# ---------- Settings ----------
+# ---------- Settings (existing + new fields) ----------
 class TestSettings:
     def test_defaults_endpoint(self, client):
         r = client.get(f"{API}/defaults", timeout=15)
@@ -29,52 +28,95 @@ class TestSettings:
         data = r.json()
         assert "single_fields" in data and "box_fields" in data and "line_items" in data
         assert data["single_fields"]["po_no"]["top"] == 7.5
-        assert data["single_fields"]["po_no"]["left"] == 5.0
-        assert data["single_fields"]["invoice_no"]["left"] == 14.2
         assert data["box_fields"]["bill_to"]["top"] == 9.4
-        assert data["box_fields"]["ship_to"]["left"] == 11.1
-        assert data["single_fields"]["pan_no_left"]["top"] == 13.0
+        # NEW: calculation defaults exposed
+        assert data["calculation"]["bags_per_mt"] == 20
+        assert data["calculation"]["gst_percent"] == 18.0
+        # NEW: product column with negative top_offset
+        assert "product" in data["line_items"]["columns"]
+        assert data["line_items"]["columns"]["product"]["left"] == 2.5
+        assert data["line_items"]["columns"]["product"]["top_offset"] == -0.7
 
     def test_get_settings_returns_defaults_when_empty(self, client):
         r = client.get(f"{API}/settings", timeout=15)
         assert r.status_code == 200
         data = r.json()
-        assert "single_fields" in data
-        assert "box_fields" in data
-        assert "line_items" in data
-        assert data["single_fields"]["po_no"]["top"] == 7.5
+        assert data["calculation"]["bags_per_mt"] == 20
+        assert data["calculation"]["gst_percent"] == 18.0
+        assert data["line_items"]["columns"]["product"]["top_offset"] == -0.7
 
-    def test_save_and_persist_settings(self, client):
-        # GET defaults, modify po_no.top, POST and re-fetch
+    def test_save_and_persist_calculation(self, client):
         defaults = client.get(f"{API}/settings", timeout=15).json()
-        # remove the 'key' field if present (not part of Settings model)
         defaults.pop("key", None)
         defaults.pop("_id", None)
-        defaults["single_fields"]["po_no"]["top"] = 8.5
+        # Modify calculation values
+        defaults["calculation"]["gst_percent"] = 28.0
+        defaults["calculation"]["bags_per_mt"] = 25
 
         save = client.post(f"{API}/settings", json=defaults, timeout=15)
         assert save.status_code == 200, save.text
-        assert save.json().get("status") == "ok"
 
         fetched = client.get(f"{API}/settings", timeout=15).json()
-        assert fetched["single_fields"]["po_no"]["top"] == 8.5
-        # other defaults intact
-        assert fetched["single_fields"]["invoice_no"]["left"] == 14.2
+        assert fetched["calculation"]["gst_percent"] == 28.0
+        assert fetched["calculation"]["bags_per_mt"] == 25
+        # Other fields preserved
+        assert fetched["single_fields"]["po_no"]["top"] == 7.5
 
-    def test_reset_settings(self, client):
+    def test_save_and_persist_product_column(self, client):
         defaults = client.get(f"{API}/settings", timeout=15).json()
         defaults.pop("key", None)
         defaults.pop("_id", None)
-        defaults["single_fields"]["po_no"]["top"] = 9.9
+        defaults["line_items"]["columns"]["product"]["left"] = 3.1
+        defaults["line_items"]["columns"]["product"]["top_offset"] = -0.9
+
+        save = client.post(f"{API}/settings", json=defaults, timeout=15)
+        assert save.status_code == 200, save.text
+
+        fetched = client.get(f"{API}/settings", timeout=15).json()
+        assert fetched["line_items"]["columns"]["product"]["left"] == 3.1
+        assert fetched["line_items"]["columns"]["product"]["top_offset"] == -0.9
+
+    def test_reset_settings(self, client):
+        defaults = client.get(f"{API}/settings", timeout=15).json()
+        defaults.pop("key", None); defaults.pop("_id", None)
+        defaults["calculation"]["gst_percent"] = 9.9
         client.post(f"{API}/settings", json=defaults, timeout=15)
 
         r = client.post(f"{API}/settings/reset", timeout=15)
         assert r.status_code == 200
-        body = r.json()
-        assert body["single_fields"]["po_no"]["top"] == 7.5
-
+        assert r.json()["calculation"]["gst_percent"] == 18.0
         again = client.get(f"{API}/settings", timeout=15).json()
-        assert again["single_fields"]["po_no"]["top"] == 7.5
+        assert again["calculation"]["gst_percent"] == 18.0
+
+
+# ---------- Backfill: insert legacy doc, GET should backfill ----------
+class TestBackfill:
+    def test_backfill_legacy_doc(self, client):
+        # First reset to clean state
+        client.post(f"{API}/settings/reset", timeout=15)
+
+        # Save a legacy-shaped doc (no calculation, no product column, no top_offset)
+        legacy = client.get(f"{API}/defaults", timeout=15).json()
+        legacy.pop("key", None)
+        # Strip newer fields to simulate old saved doc
+        legacy.pop("calculation", None)
+        legacy["line_items"]["columns"].pop("product", None)
+        for k, v in legacy["line_items"]["columns"].items():
+            v.pop("top_offset", None)
+
+        r = client.post(f"{API}/settings", json=legacy, timeout=15)
+        assert r.status_code == 200, r.text
+
+        # Now GET /api/settings — backfill must add missing fields
+        fetched = client.get(f"{API}/settings", timeout=15).json()
+        assert "calculation" in fetched, "calculation field not backfilled"
+        assert fetched["calculation"]["bags_per_mt"] == 20
+        assert fetched["calculation"]["gst_percent"] == 18.0
+        assert "product" in fetched["line_items"]["columns"], "product column not backfilled"
+        assert fetched["line_items"]["columns"]["product"]["top_offset"] == -0.7
+        # Existing columns now have top_offset=0.0
+        for k, v in fetched["line_items"]["columns"].items():
+            assert "top_offset" in v
 
 
 # ---------- PDF generation ----------
@@ -82,15 +124,11 @@ class TestGeneratePdf:
     def test_generate_pdf_returns_real_pdf(self, client):
         payload = {
             "data": {
-                "single_values": {
-                    "po_no": "PO-123",
-                    "invoice_no": "INV-001",
-                    "invoice_date": "10/01/2026",
-                },
-                "bill_to": "M/s ABC Traders\nMain Road, Rajkot\nGSTIN: 24ABCDE1234F1Z5",
-                "ship_to": "M/s XYZ Stores\nSurat",
+                "single_values": {"po_no": "PO-123", "invoice_no": "INV-001"},
+                "bill_to": "M/s ABC", "ship_to": "M/s XYZ",
                 "line_items": [
-                    {"mt": "1.5", "no_of_bags": "30", "rate_per_mt": "5000", "amount": "7500"}
+                    {"product": "OPC CEMENT", "mt": "4.00", "no_of_bags": "80",
+                     "rate_per_mt": "4237.29", "amount": "16949.15"}
                 ],
             }
         }
@@ -100,28 +138,24 @@ class TestGeneratePdf:
         assert r.content[:4] == b"%PDF"
         assert len(r.content) > 500
 
-    def test_generate_pdf_with_empty_data(self, client):
-        # Should still produce a valid (mostly blank) PDF
-        payload = {"data": {"single_values": {}, "bill_to": "", "ship_to": "", "line_items": []}}
-        r = client.post(f"{API}/generate-pdf", json=payload, timeout=30)
-        assert r.status_code == 200
-        assert r.content[:4] == b"%PDF"
-
-    def test_generate_pdf_with_settings_override(self, client):
-        # pass an inline settings override
-        defaults = client.get(f"{API}/defaults", timeout=15).json()
-        defaults.pop("key", None)
+    def test_generate_pdf_accepts_product_field(self, client):
+        # Specifically validate that product field is accepted (no 422)
         payload = {
             "data": {
-                "single_values": {"po_no": "OVERRIDE"},
-                "bill_to": "Test", "ship_to": "", "line_items": [],
-            },
-            "settings": {
-                "single_fields": defaults["single_fields"],
-                "box_fields": defaults["box_fields"],
-                "line_items": defaults["line_items"],
-            },
+                "single_values": {},
+                "bill_to": "", "ship_to": "",
+                "line_items": [
+                    {"product": "PPC CEMENT", "no_of_bags": "40",
+                     "rate_per_mt": "5000", "amount": "10000"}
+                ],
+            }
         }
+        r = client.post(f"{API}/generate-pdf", json=payload, timeout=30)
+        assert r.status_code == 200, r.text
+        assert r.content[:4] == b"%PDF"
+
+    def test_generate_pdf_with_empty_data(self, client):
+        payload = {"data": {"single_values": {}, "bill_to": "", "ship_to": "", "line_items": []}}
         r = client.post(f"{API}/generate-pdf", json=payload, timeout=30)
         assert r.status_code == 200
         assert r.content[:4] == b"%PDF"

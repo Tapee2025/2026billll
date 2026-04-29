@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 2 e2e validation of Invoice Overlay Printer enhancements: (1) calculation field & product column with negative top_offset, (2) auto-calc engine with Indian-words conversion, (3) print preview dialog replacing direct download. Backend: 9/9 pytest pass — defaults expose calculation{bags_per_mt:20, gst_percent:18.0} and line_items.columns.product{left:2.5, top_offset:-0.7}; POST /settings persists calculation; backfill works for legacy docs missing calculation/product/top_offset; /generate-pdf accepts product field. Frontend: row computeRow() correct for 80 bags @250 -> MT 4.00, Rate 4,237.29, Amount 16,949.15, central=state=1,525.42, grand=20,000.00; words 'Rupees Three Thousand Fifty and Eighty Five Paisa Only' and 'Rupees Twenty Thousand Only' match exactly. Multi-row aggregation correct (PPC 40@300 -> 10,169.49, grand 32,000). Generate Print Preview opens Dialog with iframe (blob: src) and 3 buttons (download/print/open-new-tab). Dialog closes via X and reopens. Settings page exposes product col fields and Calculation Rules card; changing gst_percent to 28 saves and Fill Invoice page recomputes correctly (taxable 15,625, central 2,187.50). same-as-bill checkbox mirrors bill_to and disables ship_to.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: pressing Escape inside the open Preview Dialog does NOT close it because the iframe captures keyboard focus and Radix UI's Escape handler never fires. The X button and clicking the dim overlay still close it correctly, so functionally OK but worth knowing. Could be improved by attaching a top-level keydown listener while the dialog is open and dispatching Esc-to-close from the parent.",
+    "Minor: in FillInvoicePage.handleGenerate, when Generate is clicked twice in a row, the previous blob URL is revoked after setPreviewBlob/setPreviewUrl on the new one, but if the user is mid-print on the old blob the iframe could glitch. The current flow is acceptable for this app.",
+    "Minor (carried from iter 1): SettingsPage NumberInput uses parseFloat(v)||0 which collapses an empty field to 0. Consider an empty-string sentinel state.",
+    "Good: backfill logic in GET /api/settings is robust — older saved docs without calculation/product/top_offset are upgraded transparently. MongoDB _id correctly excluded.",
+    "Good: rupeesToWords() uses correct Indian numbering (Lakh/Crore) and round-half paisa, matching expected 'Three Thousand Fifty and Eighty Five Paisa' for 3050.847..."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all flows incl. dialog reopen, 28% GST persistence)"},
+  "test_credentials": "N/A - no auth in this app",
+  "seed_data_creation": "Tests POST /api/settings/reset between runs to clean state. Backfill test inserts a legacy-shaped doc (no calculation/product) then verifies GET fills them.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pytest at /app/backend/tests/backend_test.py covers settings (defaults, persist, reset), backfill of legacy docs, and PDF generation (incl. product field). For Playwright: when interacting with iframe-containing dialogs, do NOT rely on Escape to close — use the X button (Radix render's its own close button at top-right of DialogContent) or click the dim overlay. number inputs in Settings should be cleared via Ctrl+A/Delete before typing. Calculation expectations: MT=bags/bags_per_mt; taxable=bags*price/(1+gst/100); central=state=(total-taxable)/2; rupeesToWords('3050.85') -> 'Rupees Three Thousand Fifty and Eighty Five Paisa Only'.",
+  "rca of the issue": "N/A — no failures."
+}
