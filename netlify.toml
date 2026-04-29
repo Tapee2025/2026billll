@@ -1,0 +1,17 @@
+# Netlify build config for the React frontend (CRA).
+# The repo has /app/frontend as the React project root.
+
+[build]
+  base    = "frontend"
+  command = "yarn install --frozen-lockfile && yarn build"
+  publish = "frontend/build"
+
+[build.environment]
+  NODE_VERSION = "20"
+  CI           = "false"
+
+# Single-page-app routing — every route returns index.html
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

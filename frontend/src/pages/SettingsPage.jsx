@@ -7,7 +7,11 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Loader2, Save, RotateCcw } from "lucide-react";
-import { fetchSettings, saveSettings, resetSettings } from "@/lib/api";
+import {
+  fetchSettings,
+  saveSettings,
+  resetSettings,
+} from "@/lib/settings";
 
 function NumberInput({ value, onChange, testId, step = 0.1, suffix = "cm" }) {
   return (

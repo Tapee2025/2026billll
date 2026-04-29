@@ -30,7 +30,8 @@ import {
   Printer,
   ExternalLink,
 } from "lucide-react";
-import { fetchSettings, generatePdf } from "@/lib/api";
+import { fetchSettings } from "@/lib/settings";
+import { generatePdfBlob } from "@/lib/pdf";
 import { rupeesToWords, fmt } from "@/lib/numberToWords";
 
 const EMPTY_ROW = { product: "", no_of_bags: "", price_per_bag: "" };
@@ -237,7 +238,7 @@ export default function FillInvoicePage() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const blob = await generatePdf(buildPayload());
+      const blob = generatePdfBlob(settings, buildPayload());
       // Revoke any previous URL
       if (previewUrl) window.URL.revokeObjectURL(previewUrl);
       const url = window.URL.createObjectURL(blob);
@@ -245,6 +246,8 @@ export default function FillInvoicePage() {
       setPreviewUrl(url);
       setPreviewOpen(true);
     } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(e);
       toast.error("Failed to generate PDF");
     } finally {
       setGenerating(false);
