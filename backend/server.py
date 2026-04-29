@@ -89,12 +89,22 @@ DEFAULT_CALCULATION = {
     "gst_percent": 18.0,         # CGST + SGST combined (1.18 multiplier)
 }
 
+DEFAULT_CALIBRATION = {
+    "vertical_set": 1.0,
+    "vertical_actual": 1.0,
+    "horizontal_set": 1.0,
+    "horizontal_actual": 1.0,
+    "vertical_offset": 0.0,
+    "horizontal_offset": 0.0,
+}
+
 DEFAULT_SETTINGS = {
     "key": "default",
     "single_fields": DEFAULT_SINGLE_FIELDS,
     "box_fields": DEFAULT_BOX_FIELDS,
     "line_items": DEFAULT_LINE_ITEMS,
     "calculation": DEFAULT_CALCULATION,
+    "calibration": DEFAULT_CALIBRATION,
 }
 
 
@@ -144,12 +154,26 @@ class CalculationCfg(BaseModel):
     gst_percent: float = 18.0
 
 
+class CalibrationCfg(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    # Single-point calibration: user reports "I set vertical_set cm and printer printed at vertical_actual cm".
+    # Scale applied to all top/left positions to compensate.
+    vertical_set: float = 1.0
+    vertical_actual: float = 1.0
+    horizontal_set: float = 1.0
+    horizontal_actual: float = 1.0
+    # Optional fixed offsets (cm) added after scaling
+    vertical_offset: float = 0.0
+    horizontal_offset: float = 0.0
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="ignore")
     single_fields: Dict[str, SingleFieldCfg]
     box_fields: Dict[str, BoxFieldCfg]
     line_items: LineItemsCfg
     calculation: CalculationCfg = CalculationCfg()
+    calibration: CalibrationCfg = CalibrationCfg()
 
 
 class LineItemRow(BaseModel):
@@ -186,9 +210,11 @@ async def get_settings():
     doc = await db.invoice_settings.find_one({"key": "default"}, {"_id": 0})
     if not doc:
         return DEFAULT_SETTINGS
-    # Backfill any new fields added after a previous save (calculation, product column, top_offset)
+    # Backfill any new fields added after a previous save (calculation, product column, top_offset, calibration)
     if "calculation" not in doc:
         doc["calculation"] = DEFAULT_CALCULATION
+    if "calibration" not in doc:
+        doc["calibration"] = DEFAULT_CALIBRATION
     li = doc.get("line_items") or {}
     cols = li.get("columns") or {}
     if "product" not in cols:
@@ -223,7 +249,28 @@ def _font_name(bold: bool) -> str:
     return "Courier-Bold" if bold else "Courier"
 
 
-def _draw_text(c: canvas.Canvas, text: str, top_cm: float, left_cm: float, font_size: float, bold: bool):
+def _calibration_factors(cal: Dict[str, Any]):
+    """Returns (v_scale, h_scale, v_offset, h_offset).
+    Compensation logic: if printer scaled set→actual (e.g., user set 24.5cm but printed at 20.4cm),
+    we need to draw at desired*set/actual so after printer's distortion it lands correctly.
+    """
+    if not cal:
+        return 1.0, 1.0, 0.0, 0.0
+    v_set = float(cal.get("vertical_set", 1.0)) or 1.0
+    v_act = float(cal.get("vertical_actual", 1.0)) or 1.0
+    h_set = float(cal.get("horizontal_set", 1.0)) or 1.0
+    h_act = float(cal.get("horizontal_actual", 1.0)) or 1.0
+    v_scale = v_set / v_act if v_act else 1.0
+    h_scale = h_set / h_act if h_act else 1.0
+    v_offset = float(cal.get("vertical_offset", 0.0))
+    h_offset = float(cal.get("horizontal_offset", 0.0))
+    return v_scale, h_scale, v_offset, h_offset
+
+
+def _draw_text(c: canvas.Canvas, text: str, top_cm: float, left_cm: float,
+               font_size: float, bold: bool,
+               v_scale: float = 1.0, h_scale: float = 1.0,
+               v_offset: float = 0.0, h_offset: float = 0.0):
     if text is None:
         return
     text = str(text)
@@ -231,12 +278,16 @@ def _draw_text(c: canvas.Canvas, text: str, top_cm: float, left_cm: float, font_
         return
     page_h = A4[1]
     c.setFont(_font_name(bold), font_size)
-    x = left_cm * cm
-    y = page_h - (top_cm * cm)
+    adj_top = top_cm * v_scale + v_offset
+    adj_left = left_cm * h_scale + h_offset
+    x = adj_left * cm
+    y = page_h - (adj_top * cm)
     c.drawString(x, y, text)
 
 
-def _draw_box_text(c: canvas.Canvas, text: str, cfg: Dict[str, Any]):
+def _draw_box_text(c: canvas.Canvas, text: str, cfg: Dict[str, Any],
+                   v_scale: float = 1.0, h_scale: float = 1.0,
+                   v_offset: float = 0.0, h_offset: float = 0.0):
     if not text:
         return
     page_h = A4[1]
@@ -244,7 +295,8 @@ def _draw_box_text(c: canvas.Canvas, text: str, cfg: Dict[str, Any]):
     bold = cfg.get("bold", True)
     line_height_cm = cfg.get("line_height", 0.5)
     c.setFont(_font_name(bold), font_size)
-    x = cfg["left"] * cm
+    adj_left = cfg["left"] * h_scale + h_offset
+    x = adj_left * cm
     top_cm_val = cfg["top"]
     max_h_cm = cfg["height"]
     lines = str(text).split("\n")
@@ -252,7 +304,8 @@ def _draw_box_text(c: canvas.Canvas, text: str, cfg: Dict[str, Any]):
         line_top = top_cm_val + (i * line_height_cm)
         if (line_top - top_cm_val) > max_h_cm:
             break
-        y = page_h - (line_top * cm)
+        adj_line_top = line_top * v_scale + v_offset
+        y = page_h - (adj_line_top * cm)
         c.drawString(x, y, line)
 
 
@@ -268,6 +321,8 @@ async def generate_pdf(req: GeneratePdfRequest):
     single_fields = settings_dict.get("single_fields", {})
     box_fields = settings_dict.get("box_fields", {})
     line_items_cfg = settings_dict.get("line_items", {})
+    calibration = settings_dict.get("calibration", DEFAULT_CALIBRATION)
+    v_scale, h_scale, v_offset, h_offset = _calibration_factors(calibration)
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
@@ -284,13 +339,19 @@ async def generate_pdf(req: GeneratePdfRequest):
             left_cm=cfg["left"],
             font_size=cfg.get("font_size", 11),
             bold=cfg.get("bold", True),
+            v_scale=v_scale, h_scale=h_scale,
+            v_offset=v_offset, h_offset=h_offset,
         )
 
     # Box fields (Bill To / Ship To)
     if "bill_to" in box_fields and req.data.bill_to:
-        _draw_box_text(c, req.data.bill_to, box_fields["bill_to"])
+        _draw_box_text(c, req.data.bill_to, box_fields["bill_to"],
+                       v_scale=v_scale, h_scale=h_scale,
+                       v_offset=v_offset, h_offset=h_offset)
     if "ship_to" in box_fields and req.data.ship_to:
-        _draw_box_text(c, req.data.ship_to, box_fields["ship_to"])
+        _draw_box_text(c, req.data.ship_to, box_fields["ship_to"],
+                       v_scale=v_scale, h_scale=h_scale,
+                       v_offset=v_offset, h_offset=h_offset)
 
     # Line items
     if line_items_cfg and req.data.line_items:
@@ -308,7 +369,9 @@ async def generate_pdf(req: GeneratePdfRequest):
                     continue
                 top_offset = col_cfg.get("top_offset", 0.0) if isinstance(col_cfg, dict) else 0.0
                 _draw_text(c, value, top_cm=row_top + top_offset, left_cm=col_cfg["left"],
-                           font_size=font_size, bold=bold)
+                           font_size=font_size, bold=bold,
+                           v_scale=v_scale, h_scale=h_scale,
+                           v_offset=v_offset, h_offset=h_offset)
 
     c.showPage()
     c.save()

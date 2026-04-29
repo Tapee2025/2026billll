@@ -18,6 +18,7 @@ export async function saveSettings(settings) {
     box_fields: settings.box_fields,
     line_items: settings.line_items,
     calculation: settings.calculation,
+    calibration: settings.calibration,
   };
   const { data } = await api.post("/settings", payload);
   return data;

@@ -462,6 +462,166 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card data-testid="calib-card">
+        <CardHeader>
+          <CardTitle>Print Calibration</CardTitle>
+          <CardDescription>
+            If your printer is shrinking or shifting the print, calibrate it
+            here. Print one PDF, measure the actual position of any field with
+            a ruler, and enter the values below. The app will compensate every
+            coordinate automatically. <br />
+            <span className="text-xs">
+              <strong>Tip first:</strong> in your browser&apos;s Print dialog
+              set <em>Scale = 100% / Actual Size</em> (NOT &quot;Fit to
+              page&quot;) — that fixes 99% of cases without any calibration.
+            </span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="text-sm font-semibold">
+                Vertical (Top, cm) Calibration
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs uppercase">You set</Label>
+                  <NumberInput
+                    value={settings.calibration?.vertical_set ?? 1}
+                    onChange={(v) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        calibration: {
+                          ...(prev.calibration || {}),
+                          vertical_set: v,
+                        },
+                      }))
+                    }
+                    testId="calib-v-set"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs uppercase">Actually printed</Label>
+                  <NumberInput
+                    value={settings.calibration?.vertical_actual ?? 1}
+                    onChange={(v) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        calibration: {
+                          ...(prev.calibration || {}),
+                          vertical_actual: v,
+                        },
+                      }))
+                    }
+                    testId="calib-v-actual"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs uppercase">
+                  Vertical Offset (added after scaling)
+                </Label>
+                <NumberInput
+                  value={settings.calibration?.vertical_offset ?? 0}
+                  onChange={(v) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      calibration: {
+                        ...(prev.calibration || {}),
+                        vertical_offset: v,
+                      },
+                    }))
+                  }
+                  testId="calib-v-offset"
+                />
+              </div>
+              <div className="text-xs text-muted-foreground mono">
+                Vertical scale ={" "}
+                {(
+                  (settings.calibration?.vertical_set || 1) /
+                  (settings.calibration?.vertical_actual || 1)
+                ).toFixed(4)}
+                ×
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-sm font-semibold">
+                Horizontal (Left, cm) Calibration
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs uppercase">You set</Label>
+                  <NumberInput
+                    value={settings.calibration?.horizontal_set ?? 1}
+                    onChange={(v) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        calibration: {
+                          ...(prev.calibration || {}),
+                          horizontal_set: v,
+                        },
+                      }))
+                    }
+                    testId="calib-h-set"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs uppercase">Actually printed</Label>
+                  <NumberInput
+                    value={settings.calibration?.horizontal_actual ?? 1}
+                    onChange={(v) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        calibration: {
+                          ...(prev.calibration || {}),
+                          horizontal_actual: v,
+                        },
+                      }))
+                    }
+                    testId="calib-h-actual"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs uppercase">
+                  Horizontal Offset (added after scaling)
+                </Label>
+                <NumberInput
+                  value={settings.calibration?.horizontal_offset ?? 0}
+                  onChange={(v) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      calibration: {
+                        ...(prev.calibration || {}),
+                        horizontal_offset: v,
+                      },
+                    }))
+                  }
+                  testId="calib-h-offset"
+                />
+              </div>
+              <div className="text-xs text-muted-foreground mono">
+                Horizontal scale ={" "}
+                {(
+                  (settings.calibration?.horizontal_set || 1) /
+                  (settings.calibration?.horizontal_actual || 1)
+                ).toFixed(4)}
+                ×
+              </div>
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground bg-secondary p-3 rounded">
+            <strong>Example:</strong> you set Bill Amount top = 24.5 cm but it
+            printed at 20.4 cm. Enter <span className="mono">You set = 24.5</span>{" "}
+            and <span className="mono">Actually printed = 20.4</span>. The
+            scale becomes 1.2010× and every field will be drawn slightly lower
+            so the printer&apos;s shrink lands them where you wanted. Save
+            settings, regenerate the PDF, and reprint.
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center justify-end gap-3 sticky bottom-4 z-10">
         <Button
           variant="outline"

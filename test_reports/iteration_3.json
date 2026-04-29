@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 3 — Print Calibration feature validated end-to-end. Backend: 18/18 pytest pass (9 calibration-specific + 9 regression). Verified DEFAULT_CALIBRATION exposed in /api/defaults & /api/settings, legacy-doc backfill works, POST round-trips all 6 fields (vertical_set, vertical_actual, horizontal_set, horizontal_actual, vertical_offset, horizontal_offset). PDF coordinate verification with pdfplumber: field set at top=24.5cm with cal 24.5/20.4 produces glyph y_top ≈ 29.124cm (baseline 29.42cm − ascent 0.3cm) — matches target within ±0.05cm. Disabled cal (1/1) draws at exact set coords. Horizontal scale 10/8 applied to left=5 yields x≈6.25cm. vertical_offset=0.5 with scale=1 shifts top=10 to 10.5. Frontend Settings: calib-card visible with all 6 testids (calib-v-set / -v-actual / -h-set / -h-actual / -v-offset / -h-offset). Entering 24.5/20.4 immediately renders 'Vertical scale = 1.2010×' as expected. Save persists across reload (verified after page.reload). Reset to Defaults restores 1/1. Fill Invoice Generate Print Preview opens dialog with iframe and no errors when calibration is active.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_calibration.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Calibration math is sound: drawn = top * (set/actual) + offset, then PDF y is mirrored as page_h - drawn*cm. Verified empirically with pdfplumber (29.42cm baseline observed for 24.5 input with 24.5/20.4 cal).",
+    "Defensive: _calibration_factors() guards against zero/missing actual values via 'or 1.0' fallback — division-by-zero protected.",
+    "Backfill in GET /api/settings correctly merges DEFAULT_CALIBRATION when legacy doc lacks the key. ObjectId properly excluded via projection {_id:0}.",
+    "Minor: calibration field is NOT applied to a hypothetical preview-grid overlay or any client-side rendering; the compensation only affects /generate-pdf output. Since the user only prints the PDF, this is correct, but if a future preview-grid is added it should also use the same scale to remain WYSIWYG.",
+    "Minor: the SettingsPage NumberInput collapses an empty string to 0 (parseFloat||0). For calibration 'You set' = 0 would cause divide-by-zero protection to kick in (returns 1.0×) — silent rather than warning. Consider min={0.01} validation on the calibration inputs.",
+    "Minor (carry): No client-side validation prevents user from entering vertical_actual=0 (handled gracefully by backend but UI doesn't warn).",
+    "Good: backend uses inline `settings` override on /generate-pdf so a one-off calibration doesn't have to be persisted — useful for the 'preview without saving' flow."
+  ],
+  "updated_files": ["/app/backend/tests/test_calibration.py"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% (calib UI, persistence, reset, scale display, generate preview)"},
+  "test_credentials": "N/A — no auth in this app",
+  "seed_data_creation": "Each test resets settings via POST /api/settings/reset (autouse fixture). Backfill test inserts a settings doc without 'calibration' to simulate legacy state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two pytest files now exist: backend_test.py (regression for settings/auto-calc/PDF) and test_calibration.py (calibration-specific). Both are self-contained, hit the public REACT_APP_BACKEND_URL, and use a module-scoped requests.Session. pdfplumber verifies geometry: y_top = char['top']/28.3464567 in cm (top-down), expected baseline ≈ y_top + 0.3cm for 11pt Courier-Bold. Tolerance ±0.15cm for vertical (font ascent variance), ±0.05cm for horizontal. For Playwright on Settings page: clear NumberInputs with Ctrl+A/Delete before typing — direct .fill() works too but the page mounts a blocking sticky bottom bar that can intercept clicks; use scroll_into_view_if_needed() before interacting.",
+  "rca of the issue": "N/A — feature works as designed. Original bug ('printer drew at 20.4cm instead of set 24.5cm') is now compensated by drawing at 24.5*(24.5/20.4)=29.42cm in the PDF, so after the printer's 0.832× shrink the text lands at ~24.5cm where intended."
+}
