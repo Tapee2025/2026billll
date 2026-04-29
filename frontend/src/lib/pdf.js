@@ -4,17 +4,24 @@
 
 import { jsPDF } from "jspdf";
 
-function calibrationFactors(cal) {
+function calibrationFactors(cal, device) {
   if (!cal) return { vScale: 1, hScale: 1, vOffset: 0, hOffset: 0 };
-  const vSet = Number(cal.vertical_set) || 1;
-  const vAct = Number(cal.vertical_actual) || 1;
-  const hSet = Number(cal.horizontal_set) || 1;
-  const hAct = Number(cal.horizontal_actual) || 1;
+  // calibration is now per-device: { desktop:{...}, iphone:{...} }
+  // Fallback: if legacy flat object is passed, treat it as desktop.
+  const profile =
+    cal[device] ||
+    cal.desktop ||
+    (cal.vertical_set !== undefined ? cal : null);
+  if (!profile) return { vScale: 1, hScale: 1, vOffset: 0, hOffset: 0 };
+  const vSet = Number(profile.vertical_set) || 1;
+  const vAct = Number(profile.vertical_actual) || 1;
+  const hSet = Number(profile.horizontal_set) || 1;
+  const hAct = Number(profile.horizontal_actual) || 1;
   return {
     vScale: vAct ? vSet / vAct : 1,
     hScale: hAct ? hSet / hAct : 1,
-    vOffset: Number(cal.vertical_offset) || 0,
-    hOffset: Number(cal.horizontal_offset) || 0,
+    vOffset: Number(profile.vertical_offset) || 0,
+    hOffset: Number(profile.horizontal_offset) || 0,
   };
 }
 
@@ -53,12 +60,13 @@ function drawBoxText(doc, text, cfg, cal) {
 
 /**
  * @param {object} settings - full settings object (with calibration, line_items, etc.)
- * @param {object} data - { single_values, bill_to, ship_to, line_items: [{product, mt, no_of_bags, rate_per_mt, amount}, ...] }
+ * @param {object} data - { single_values, bill_to, ship_to, line_items: [...] }
+ * @param {string} device - "desktop" | "iphone" (auto-detected by caller)
  * @returns {Blob} PDF blob
  */
-export function generatePdfBlob(settings, data) {
+export function generatePdfBlob(settings, data, device = "desktop") {
   const doc = new jsPDF({ unit: "cm", format: "a4", orientation: "portrait" });
-  const cal = calibrationFactors(settings.calibration);
+  const cal = calibrationFactors(settings.calibration, device);
 
   const singleFields = settings.single_fields || {};
   const boxFields = settings.box_fields || {};

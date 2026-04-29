@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Save, RotateCcw } from "lucide-react";
+import { Loader2, Save, RotateCcw, Monitor, Smartphone } from "lucide-react";
 import {
   fetchSettings,
   saveSettings,
   resetSettings,
 } from "@/lib/settings";
+import { detectDevice, DEVICE_LABELS } from "@/lib/device";
 
 function NumberInput({ value, onChange, testId, step = 0.1, suffix = "cm" }) {
   return (
@@ -229,6 +230,26 @@ export default function SettingsPage() {
       setSaving(false);
     }
   };
+
+  const [calibTab, setCalibTab] = useState(detectDevice());
+  const updateCalib = (deviceKey, patch) => {
+    setSettings((prev) => ({
+      ...prev,
+      calibration: {
+        ...(prev.calibration || {}),
+        [deviceKey]: { ...(prev.calibration?.[deviceKey] || {}), ...patch },
+      },
+    }));
+  };
+  const currentCal =
+    settings?.calibration?.[calibTab] || {
+      vertical_set: 1,
+      vertical_actual: 1,
+      horizontal_set: 1,
+      horizontal_actual: 1,
+      vertical_offset: 0,
+      horizontal_offset: 0,
+    };
 
   if (loading || !settings) {
     return (
@@ -470,18 +491,53 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Print Calibration</CardTitle>
           <CardDescription>
-            If your printer is shrinking or shifting the print, calibrate it
-            here. Print one PDF, measure the actual position of any field with
-            a ruler, and enter the values below. The app will compensate every
-            coordinate automatically. <br />
+            Each device prints differently. Calibrate{" "}
+            <strong>Desktop</strong> and <strong>iPhone</strong>{" "}
+            independently — the app picks the right profile automatically based
+            on which device you&apos;re using. Print one PDF, measure with a
+            ruler, enter the numbers below.
+            <br />
             <span className="text-xs">
-              <strong>Tip first:</strong> in your browser&apos;s Print dialog
-              set <em>Scale = 100% / Actual Size</em> (NOT &quot;Fit to
-              page&quot;) — that fixes 99% of cases without any calibration.
+              <strong>Tip:</strong> on Desktop, set{" "}
+              <em>Scale = 100% / Actual Size</em> in the Print dialog. On
+              iPhone, use <em>Open in New Tab → Share → Print</em>.
             </span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-2 flex-wrap" data-testid="calib-device-tabs">
+            <Button
+              type="button"
+              variant={calibTab === "desktop" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCalibTab("desktop")}
+              data-testid="calib-tab-desktop"
+            >
+              <Monitor className="w-4 h-4 mr-2" />
+              {DEVICE_LABELS.desktop}
+              {detectDevice() === "desktop" && (
+                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-foreground/10">
+                  CURRENT
+                </span>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant={calibTab === "iphone" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCalibTab("iphone")}
+              data-testid="calib-tab-iphone"
+            >
+              <Smartphone className="w-4 h-4 mr-2" />
+              {DEVICE_LABELS.iphone}
+              {detectDevice() === "iphone" && (
+                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-foreground/10">
+                  CURRENT
+                </span>
+              )}
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <div className="text-sm font-semibold">
@@ -491,15 +547,9 @@ export default function SettingsPage() {
                 <div>
                   <Label className="text-xs uppercase">You set</Label>
                   <NumberInput
-                    value={settings.calibration?.vertical_set ?? 1}
+                    value={currentCal.vertical_set ?? 1}
                     onChange={(v) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        calibration: {
-                          ...(prev.calibration || {}),
-                          vertical_set: v,
-                        },
-                      }))
+                      updateCalib(calibTab, { vertical_set: v })
                     }
                     testId="calib-v-set"
                   />
@@ -507,15 +557,9 @@ export default function SettingsPage() {
                 <div>
                   <Label className="text-xs uppercase">Actually printed</Label>
                   <NumberInput
-                    value={settings.calibration?.vertical_actual ?? 1}
+                    value={currentCal.vertical_actual ?? 1}
                     onChange={(v) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        calibration: {
-                          ...(prev.calibration || {}),
-                          vertical_actual: v,
-                        },
-                      }))
+                      updateCalib(calibTab, { vertical_actual: v })
                     }
                     testId="calib-v-actual"
                   />
@@ -526,15 +570,9 @@ export default function SettingsPage() {
                   Vertical Offset (added after scaling)
                 </Label>
                 <NumberInput
-                  value={settings.calibration?.vertical_offset ?? 0}
+                  value={currentCal.vertical_offset ?? 0}
                   onChange={(v) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      calibration: {
-                        ...(prev.calibration || {}),
-                        vertical_offset: v,
-                      },
-                    }))
+                    updateCalib(calibTab, { vertical_offset: v })
                   }
                   testId="calib-v-offset"
                 />
@@ -542,8 +580,8 @@ export default function SettingsPage() {
               <div className="text-xs text-muted-foreground mono">
                 Vertical scale ={" "}
                 {(
-                  (settings.calibration?.vertical_set || 1) /
-                  (settings.calibration?.vertical_actual || 1)
+                  (currentCal.vertical_set || 1) /
+                  (currentCal.vertical_actual || 1)
                 ).toFixed(4)}
                 ×
               </div>
@@ -557,15 +595,9 @@ export default function SettingsPage() {
                 <div>
                   <Label className="text-xs uppercase">You set</Label>
                   <NumberInput
-                    value={settings.calibration?.horizontal_set ?? 1}
+                    value={currentCal.horizontal_set ?? 1}
                     onChange={(v) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        calibration: {
-                          ...(prev.calibration || {}),
-                          horizontal_set: v,
-                        },
-                      }))
+                      updateCalib(calibTab, { horizontal_set: v })
                     }
                     testId="calib-h-set"
                   />
@@ -573,15 +605,9 @@ export default function SettingsPage() {
                 <div>
                   <Label className="text-xs uppercase">Actually printed</Label>
                   <NumberInput
-                    value={settings.calibration?.horizontal_actual ?? 1}
+                    value={currentCal.horizontal_actual ?? 1}
                     onChange={(v) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        calibration: {
-                          ...(prev.calibration || {}),
-                          horizontal_actual: v,
-                        },
-                      }))
+                      updateCalib(calibTab, { horizontal_actual: v })
                     }
                     testId="calib-h-actual"
                   />
@@ -592,15 +618,9 @@ export default function SettingsPage() {
                   Horizontal Offset (added after scaling)
                 </Label>
                 <NumberInput
-                  value={settings.calibration?.horizontal_offset ?? 0}
+                  value={currentCal.horizontal_offset ?? 0}
                   onChange={(v) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      calibration: {
-                        ...(prev.calibration || {}),
-                        horizontal_offset: v,
-                      },
-                    }))
+                    updateCalib(calibTab, { horizontal_offset: v })
                   }
                   testId="calib-h-offset"
                 />
@@ -608,19 +628,24 @@ export default function SettingsPage() {
               <div className="text-xs text-muted-foreground mono">
                 Horizontal scale ={" "}
                 {(
-                  (settings.calibration?.horizontal_set || 1) /
-                  (settings.calibration?.horizontal_actual || 1)
+                  (currentCal.horizontal_set || 1) /
+                  (currentCal.horizontal_actual || 1)
                 ).toFixed(4)}
                 ×
               </div>
             </div>
           </div>
+
           <div className="text-xs text-muted-foreground bg-secondary p-3 rounded">
+            <strong>You are editing:</strong>{" "}
+            {DEVICE_LABELS[calibTab]} profile.
+            <br />
             <strong>Example:</strong> you set Bill Amount top = 24.5 cm but it
-            printed at 20.4 cm. Enter <span className="mono">You set = 24.5</span>{" "}
-            and <span className="mono">Actually printed = 20.4</span>. The
-            scale becomes 1.2010× and every field will be drawn slightly lower
-            so the printer&apos;s shrink lands them where you wanted. Save
+            printed at 20.4 cm. Enter{" "}
+            <span className="mono">You set = 24.5</span> and{" "}
+            <span className="mono">Actually printed = 20.4</span>. The scale
+            becomes 1.2010× and every field will be drawn slightly lower so
+            the printer&apos;s shrink lands them where you wanted. Save
             settings, regenerate the PDF, and reprint.
           </div>
         </CardContent>

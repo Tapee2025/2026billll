@@ -55,13 +55,19 @@ export const DEFAULT_CALCULATION = {
   gst_percent: 18.0,
 };
 
-export const DEFAULT_CALIBRATION = {
+const EMPTY_CALIBRATION = {
   vertical_set: 1.0,
   vertical_actual: 1.0,
   horizontal_set: 1.0,
   horizontal_actual: 1.0,
   vertical_offset: 0.0,
   horizontal_offset: 0.0,
+};
+
+// Two device profiles — desktop and iphone — calibrated independently.
+export const DEFAULT_CALIBRATION = {
+  desktop: { ...EMPTY_CALIBRATION },
+  iphone: { ...EMPTY_CALIBRATION },
 };
 
 export const DEFAULT_SETTINGS = {
@@ -77,7 +83,28 @@ export function backfillSettings(doc) {
   if (!doc) return DEFAULT_SETTINGS;
   const out = { ...doc };
   if (!out.calculation) out.calculation = DEFAULT_CALCULATION;
-  if (!out.calibration) out.calibration = DEFAULT_CALIBRATION;
+
+  // Calibration migration:
+  //  - legacy: a single flat object {vertical_set, vertical_actual, ...} → move under "desktop"
+  //  - missing: use defaults
+  if (!out.calibration) {
+    out.calibration = DEFAULT_CALIBRATION;
+  } else if (
+    out.calibration.vertical_set !== undefined &&
+    !out.calibration.desktop
+  ) {
+    // Legacy flat object — promote to desktop profile, init iphone empty.
+    out.calibration = {
+      desktop: { ...EMPTY_CALIBRATION, ...out.calibration },
+      iphone: { ...EMPTY_CALIBRATION },
+    };
+  } else {
+    if (!out.calibration.desktop)
+      out.calibration.desktop = { ...EMPTY_CALIBRATION };
+    if (!out.calibration.iphone)
+      out.calibration.iphone = { ...EMPTY_CALIBRATION };
+  }
+
   if (!out.line_items) out.line_items = DEFAULT_LINE_ITEMS;
   const cols = out.line_items.columns || {};
   if (!cols.product) cols.product = DEFAULT_LINE_ITEMS.columns.product;

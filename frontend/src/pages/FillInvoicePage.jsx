@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { fetchSettings } from "@/lib/settings";
 import { generatePdfBlob } from "@/lib/pdf";
+import { detectDevice, DEVICE_LABELS } from "@/lib/device";
 import { rupeesToWords, fmt } from "@/lib/numberToWords";
 
 const EMPTY_ROW = { product: "", no_of_bags: "", price_per_bag: "" };
@@ -238,7 +239,8 @@ export default function FillInvoicePage() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const blob = generatePdfBlob(settings, buildPayload());
+      const device = detectDevice();
+      const blob = generatePdfBlob(settings, buildPayload(), device);
       // Revoke any previous URL
       if (previewUrl) window.URL.revokeObjectURL(previewUrl);
       const url = window.URL.createObjectURL(blob);
@@ -253,6 +255,8 @@ export default function FillInvoicePage() {
       setGenerating(false);
     }
   };
+
+  const activeDevice = detectDevice();
 
   const downloadFile = () => {
     if (!previewBlob) return;
@@ -579,7 +583,14 @@ export default function FillInvoicePage() {
 
       <Separator />
 
-      <div className="flex items-center justify-end gap-3 sticky bottom-4 z-10">
+      <div className="flex items-center justify-between gap-3 sticky bottom-4 z-10 flex-wrap">
+        <div className="text-xs text-muted-foreground bg-card border border-border rounded-md px-3 py-2 shadow-sm" data-testid="active-device">
+          Active calibration profile:{" "}
+          <span className="font-semibold text-foreground">
+            {DEVICE_LABELS[activeDevice]}
+          </span>{" "}
+          (auto-detected)
+        </div>
         <Button
           size="lg"
           onClick={handleGenerate}
@@ -608,9 +619,23 @@ export default function FillInvoicePage() {
               Print Preview — A4 Overlay
             </DialogTitle>
             <DialogDescription>
-              This is exactly what will print onto your pre-printed invoice
-              paper. Click <strong>Print</strong> to send directly to your
-              printer, or <strong>Download</strong> to save the PDF file.
+              {activeDevice === "iphone" ? (
+                <>
+                  <strong>iPhone tip:</strong> tap{" "}
+                  <strong>Open in New Tab</strong> below → then tap{" "}
+                  <strong>Share → Print</strong>. In the iOS Print panel,
+                  pinch the preview thumbnail to zoom; if alignment is off,
+                  calibrate the iPhone profile in Settings.
+                </>
+              ) : (
+                <>
+                  This is exactly what will print onto your pre-printed
+                  invoice paper. Click <strong>Print</strong> to send directly
+                  to your printer, or <strong>Download</strong> to save the
+                  PDF file. In the print dialog set Scale = 100% (Actual
+                  Size).
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0 bg-secondary rounded-md overflow-hidden">
