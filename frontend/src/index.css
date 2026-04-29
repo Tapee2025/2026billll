@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #f7f5ef;
+    color: #1c1c1c;
+}
+
+code,
+.mono {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+@layer base {
+    :root {
+        --background: 44 26% 95%;
+        --foreground: 0 0% 11%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 11%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 11%;
+        --primary: 18 80% 45%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 44 20% 90%;
+        --secondary-foreground: 0 0% 11%;
+        --muted: 44 20% 90%;
+        --muted-foreground: 0 0% 35%;
+        --accent: 18 80% 45%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 70% 45%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 30 15% 80%;
+        --input: 30 15% 80%;
+        --ring: 18 80% 45%;
+        --radius: 0.4rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* Subtle paper grain background */
+.paper-bg {
+    background-image:
+        radial-gradient(
+            circle at 1px 1px,
+            rgba(0, 0, 0, 0.04) 1px,
+            transparent 0
+        );
+    background-size: 14px 14px;
+}
+
+.invoice-preview-page {
+    width: 21cm;
+    height: 29.7cm;
+    background: white;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.field-marker {
+    position: absolute;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    color: #1a1a1a;
+    white-space: pre;
+}
+
+.field-marker-box {
+    position: absolute;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    color: #1a1a1a;
+    white-space: pre-wrap;
+    overflow: hidden;
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+    [data-debug-wrapper="true"] > * {
+        margin-left: inherit;
+        margin-right: inherit;
+        margin-top: inherit;
+        margin-bottom: inherit;
+        padding-left: inherit;
+        padding-right: inherit;
+        padding-top: inherit;
+        padding-bottom: inherit;
+        column-gap: inherit;
+        row-gap: inherit;
+        gap: inherit;
+        border-left-width: inherit;
+        border-right-width: inherit;
+        border-top-width: inherit;
+        border-bottom-width: inherit;
+    }
+}
