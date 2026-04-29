@@ -37,7 +37,7 @@ In your Emergent workspace, top-right corner → **Save to GitHub** → pick a n
 3. Netlify reads `netlify.toml` automatically. Build settings should look like:
    - Base directory: `frontend`
    - Build command: `yarn install --frozen-lockfile && yarn build`
-   - Publish directory: `frontend/build`
+   - Publish directory: `build` (relative to base, so the actual path is `frontend/build`)
 4. **Click "Show advanced" → Environment variables → Add**:
    ```
    REACT_APP_SUPABASE_URL = https://cosibzjflmvaekqbzmnx.supabase.co
