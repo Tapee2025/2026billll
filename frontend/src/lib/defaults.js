@@ -62,6 +62,7 @@ const EMPTY_CALIBRATION = {
   horizontal_actual: 1.0,
   vertical_offset: 0.0,
   horizontal_offset: 0.0,
+  rotation_deg: 0.0,
 };
 
 // Two device profiles — desktop and iphone — calibrated independently.
@@ -103,6 +104,11 @@ export function backfillSettings(doc) {
       out.calibration.desktop = { ...EMPTY_CALIBRATION };
     if (!out.calibration.iphone)
       out.calibration.iphone = { ...EMPTY_CALIBRATION };
+    // Backfill missing rotation_deg in either profile (added later)
+    if (out.calibration.desktop.rotation_deg === undefined)
+      out.calibration.desktop.rotation_deg = 0.0;
+    if (out.calibration.iphone.rotation_deg === undefined)
+      out.calibration.iphone.rotation_deg = 0.0;
   }
 
   if (!out.line_items) out.line_items = DEFAULT_LINE_ITEMS;

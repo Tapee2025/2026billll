@@ -636,6 +636,39 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <div className="space-y-3 border-t border-border/60 pt-4">
+            <div className="text-sm font-semibold">
+              Rotation Correction
+              <span className="text-xs text-muted-foreground font-normal ml-2">
+                (fixes printed lines that tilt up or down across the page)
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <div>
+                <Label className="text-xs uppercase">
+                  Rotation (degrees)
+                </Label>
+                <NumberInput
+                  value={currentCal.rotation_deg ?? 0}
+                  onChange={(v) =>
+                    updateCalib(calibTab, { rotation_deg: v })
+                  }
+                  step={0.1}
+                  suffix="°"
+                  testId="calib-rotation"
+                />
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <strong>Positive</strong> if text tilts UP toward the right
+                edge.
+                <br />
+                <strong>Negative</strong> if text tilts DOWN toward the right.
+                <br />
+                Adjust by 0.1° at a time. Most printers need 0.0° – 2.0°.
+              </div>
+            </div>
+          </div>
+
           <div className="text-xs text-muted-foreground bg-secondary p-3 rounded">
             <strong>You are editing:</strong>{" "}
             {DEVICE_LABELS[calibTab]} profile.

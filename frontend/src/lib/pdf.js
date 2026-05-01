@@ -5,14 +5,12 @@
 import { jsPDF } from "jspdf";
 
 function calibrationFactors(cal, device) {
-  if (!cal) return { vScale: 1, hScale: 1, vOffset: 0, hOffset: 0 };
-  // calibration is now per-device: { desktop:{...}, iphone:{...} }
-  // Fallback: if legacy flat object is passed, treat it as desktop.
+  if (!cal) return { vScale: 1, hScale: 1, vOffset: 0, hOffset: 0, rotationDeg: 0 };
   const profile =
     cal[device] ||
     cal.desktop ||
     (cal.vertical_set !== undefined ? cal : null);
-  if (!profile) return { vScale: 1, hScale: 1, vOffset: 0, hOffset: 0 };
+  if (!profile) return { vScale: 1, hScale: 1, vOffset: 0, hOffset: 0, rotationDeg: 0 };
   const vSet = Number(profile.vertical_set) || 1;
   const vAct = Number(profile.vertical_actual) || 1;
   const hSet = Number(profile.horizontal_set) || 1;
@@ -22,6 +20,30 @@ function calibrationFactors(cal, device) {
     hScale: hAct ? hSet / hAct : 1,
     vOffset: Number(profile.vertical_offset) || 0,
     hOffset: Number(profile.horizontal_offset) || 0,
+    rotationDeg: Number(profile.rotation_deg) || 0,
+  };
+}
+
+// Apply scale + offset, then a SHEAR to compensate for printer/preview skew.
+//
+// Positive rotation_deg means: "I observe text tilting UP toward the right
+// edge of the page" (i.e., right-side text appears HIGHER on the printed page).
+// Compensation: draw right-side text LOWER in the PDF (larger top_cm) so it
+// lands level after the printer's distortion.
+//
+// We use a shear (y_pdf = y + x*tan(theta)) instead of a full 2D rotation
+// because (a) it has the correct sign, (b) it's invariant under choice of
+// pivot for typical small angles, and (c) it leaves x positions unchanged
+// which prevents any horizontal drift. For angles under ~5° the visual
+// difference vs. true rotation is imperceptible.
+function applyCalibration(topCm, leftCm, cal) {
+  const t = topCm * cal.vScale + cal.vOffset;
+  const l = leftCm * cal.hScale + cal.hOffset;
+  if (!cal.rotationDeg) return { left: l, top: t };
+  const tan = Math.tan((cal.rotationDeg * Math.PI) / 180);
+  return {
+    left: l,
+    top: t + l * tan,
   };
 }
 
@@ -34,10 +56,10 @@ function drawText(doc, text, topCm, leftCm, fontSize, bold, cal) {
   if (text === null || text === undefined || text === "") return;
   setFontFor(doc, bold);
   doc.setFontSize(fontSize || 11);
-  const adjTop = topCm * cal.vScale + cal.vOffset;
-  const adjLeft = leftCm * cal.hScale + cal.hOffset;
-  // jsPDF with unit:"cm" places baseline at y from top of page.
-  doc.text(String(text), adjLeft, adjTop);
+  const { left, top } = applyCalibration(topCm, leftCm, cal);
+  // jsPDF angle: positive = CCW. We rotate glyphs CW by rotationDeg → -angle.
+  const opts = cal.rotationDeg ? { angle: -cal.rotationDeg } : undefined;
+  doc.text(String(text), left, top, opts);
 }
 
 function drawBoxText(doc, text, cfg, cal) {
@@ -47,14 +69,14 @@ function drawBoxText(doc, text, cfg, cal) {
   const lineHeight = cfg.line_height || 0.5;
   setFontFor(doc, bold);
   doc.setFontSize(fontSize);
+  const opts = cal.rotationDeg ? { angle: -cal.rotationDeg } : undefined;
 
-  const adjLeft = cfg.left * cal.hScale + cal.hOffset;
   const lines = String(text).split("\n");
   for (let i = 0; i < lines.length; i++) {
-    const lineTop = cfg.top + i * lineHeight;
-    if (lineTop - cfg.top > cfg.height) break;
-    const adjLineTop = lineTop * cal.vScale + cal.vOffset;
-    doc.text(lines[i], adjLeft, adjLineTop);
+    const lineTopRaw = cfg.top + i * lineHeight;
+    if (lineTopRaw - cfg.top > cfg.height) break;
+    const { left, top } = applyCalibration(lineTopRaw, cfg.left, cal);
+    doc.text(lines[i], left, top, opts);
   }
 }
 
