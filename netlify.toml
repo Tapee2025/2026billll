@@ -9,6 +9,8 @@
 [build.environment]
   NODE_VERSION = "20"
   CI           = "false"
+  # Skip any auto-detected plugins
+  NETLIFY_USE_YARN = "true"
 
 # Single-page-app routing — every route returns index.html
 [[redirects]]
