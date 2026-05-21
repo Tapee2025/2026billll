@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Printer } from "lucide-react";
 
-const VALID_USERNAME = "admin";
-const VALID_PASSWORD = "admin@2024";
+const VALID_USERNAME = "masala";
+const VALID_PASSWORD = "dosa";
 
 export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState("");
