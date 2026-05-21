@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import FillInvoicePage from "@/pages/FillInvoicePage";
 import SettingsPage from "@/pages/SettingsPage";
-import { Printer, Settings as SettingsIcon, FileText } from "lucide-react";
+import LoginPage from "@/pages/LoginPage";
+import { LogOut, Settings as SettingsIcon, FileText } from "lucide-react";
 
-function Header() {
+function Header({ onLogout }) {
   const linkClass = ({ isActive }) =>
     `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
       isActive
@@ -20,22 +21,6 @@ function Header() {
       data-testid="app-header"
     >
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
-            <Printer className="w-5 h-5" />
-          </div>
-          <div>
-            <h1
-              className="text-lg font-bold tracking-tight"
-              data-testid="app-title"
-            >
-              Invoice Overlay Printer
-            </h1>
-            <p className="text-xs text-muted-foreground mono">
-              A4 · Pre-printed invoice filler
-            </p>
-          </div>
-        </div>
         <nav className="flex items-center gap-2" data-testid="main-nav">
           <NavLink to="/" end className={linkClass} data-testid="nav-fill">
             <FileText className="w-4 h-4" />
@@ -50,16 +35,41 @@ function Header() {
             Print Field Settings
           </NavLink>
         </nav>
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-foreground/70 hover:bg-secondary hover:text-foreground transition-colors"
+          data-testid="logout-btn"
+        >
+          <LogOut className="w-4 h-4" />
+          Logout
+        </button>
       </div>
     </header>
   );
 }
 
 function App() {
+  const [authenticated, setAuthenticated] = useState(false);
+
+  const handleLogin = () => setAuthenticated(true);
+
+  const handleLogout = () => {
+    setAuthenticated(false);
+  };
+
+  if (!authenticated) {
+    return (
+      <>
+        <LoginPage onLogin={handleLogin} />
+        <Toaster richColors position="top-right" />
+      </>
+    );
+  }
+
   return (
     <div className="App paper-bg">
       <BrowserRouter>
-        <Header />
+        <Header onLogout={handleLogout} />
         <main className="max-w-6xl mx-auto px-4 py-8">
           <Routes>
             <Route path="/" element={<FillInvoicePage />} />
