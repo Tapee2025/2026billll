@@ -140,7 +140,7 @@ export default function FillInvoicePage() {
         setSettings(s);
       } catch (e) {
         toast.error("Failed to load field settings");
-      } fillInvoicePage      } finally {
+      } finally {
         setLoading(false);
       }
     })();
