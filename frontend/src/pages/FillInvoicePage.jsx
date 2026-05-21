@@ -111,7 +111,7 @@ export default function FillInvoicePage() {
   const [singleValues, setSingleValues] = useState({
     invoice_date: "21-05-2026",
     po_date: "21-05-2026",
-    invoice_no: "INV-2026-",
+    invoice_no: "",
     po_no: "SELF",
     pan_no_left: "",
     pan_no_right: "",
