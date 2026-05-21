@@ -73,7 +73,6 @@ const SINGLE_GROUPS = [
   },
 ];
 
-// Totals are auto-computed and not user-typed
 const AUTO_TOTAL_KEYS = [
   "sub_total",
   "taxable_amount",
@@ -90,7 +89,7 @@ function computeRow(bags, price, bagsPerMt, gstPct) {
   if (!b || !p) {
     return { mt: 0, ratePerMt: 0, taxable: 0, total: 0, central: 0, state: 0 };
   }
-  const total = b * p; // inclusive of GST
+  const total = b * p; 
   const factor = 1 + gstPct / 100;
   const taxable = total / factor;
   const tax = total - taxable;
@@ -105,13 +104,31 @@ export default function FillInvoicePage() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [singleValues, setSingleValues] = useState({});
+  
+  // ————————————————————————————————————————————————————————————————
+  // INITIAL STATE WITH CUSTOM REQUESTED DEFAULTS
+  // ————————————————————————————————————————————————————————————————
+  const [singleValues, setSingleValues] = useState({
+    invoice_date: "21-05-2026",
+    po_date: "21-05-2026",
+    invoice_no: "INV-2026-",
+    po_no: "SELF",
+    pan_no_left: "",
+    pan_no_right: "",
+    mode_of_transport: "ROAD",
+    freight: "TO PAY",
+    transporter_name: "SELF",
+    lr_no: "NA",
+    driver_mobile: "NA",
+    tpca_code: "00",
+  });
+  // ————————————————————————————————————————————————————————————————
+
   const [billTo, setBillTo] = useState("");
   const [shipTo, setShipTo] = useState("");
   const [sameAsBillTo, setSameAsBillTo] = useState(false);
   const [rows, setRows] = useState([{ ...EMPTY_ROW }]);
 
-  // Preview dialog state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewBlob, setPreviewBlob] = useState(null);
@@ -123,7 +140,7 @@ export default function FillInvoicePage() {
         setSettings(s);
       } catch (e) {
         toast.error("Failed to load field settings");
-      } finally {
+      } fillInvoicePage      } finally {
         setLoading(false);
       }
     })();
@@ -170,9 +187,27 @@ export default function FillInvoicePage() {
     return map;
   }, [settings]);
 
+  // ————————————————————————————————————————————————————————————————
+  // DYNAMIC HANDLING FOR TRACKING MATCHED FIELDS
+  // ————————————————————————————————————————————————————————————————
   const handleSingleChange = (key, value) => {
-    setSingleValues((prev) => ({ ...prev, [key]: value }));
+    setSingleValues((prev) => {
+      const next = { ...prev, [key]: value };
+      
+      // Mirror Invoice Date to PO Date
+      if (key === "invoice_date") {
+        next.po_date = value;
+      }
+      
+      // Mirror PAN No Bill To (pan_no_left) to PAN No Ship To (pan_no_right)
+      if (key === "pan_no_left") {
+        next.pan_no_right = value;
+      }
+      
+      return next;
+    });
   };
+  // ————————————————————————————————————————————————————————————————
 
   const handleRowChange = (idx, key, value) => {
     setRows((prev) => {
@@ -200,7 +235,6 @@ export default function FillInvoicePage() {
   const buildPayload = () => {
     const finalShipTo = sameAsBillTo ? billTo : shipTo;
 
-    // Build line item rows with formatted strings (only filled rows)
     const lineItemsForPdf = computedRows
       .filter((r) => r.product || r.no_of_bags || r.price_per_bag)
       .map((r) => ({
@@ -211,7 +245,6 @@ export default function FillInvoicePage() {
         amount: r.taxable ? fmt(r.taxable, 2) : "",
       }));
 
-    // Auto-compute totals as formatted strings
     const autoTotals = {
       sub_total: totals.subTotal ? fmt(totals.subTotal, 2) : "",
       taxable_amount: totals.taxable ? fmt(totals.taxable, 2) : "",
@@ -224,7 +257,6 @@ export default function FillInvoicePage() {
       bill_amount: totals.grand ? rupeesToWords(totals.grand) : "",
     };
 
-    // Merge user-typed singles with auto totals (auto wins for total keys)
     const merged = { ...singleValues };
     for (const k of AUTO_TOTAL_KEYS) merged[k] = autoTotals[k];
 
@@ -241,14 +273,12 @@ export default function FillInvoicePage() {
     try {
       const device = detectDevice();
       const blob = generatePdfBlob(settings, buildPayload(), device);
-      // Revoke any previous URL
       if (previewUrl) window.URL.revokeObjectURL(previewUrl);
       const url = window.URL.createObjectURL(blob);
       setPreviewBlob(blob);
       setPreviewUrl(url);
       setPreviewOpen(true);
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error(e);
       toast.error("Failed to generate PDF");
     } finally {
@@ -288,7 +318,6 @@ export default function FillInvoicePage() {
       iframe?.contentWindow?.focus();
       iframe?.contentWindow?.print();
     } catch (_) {
-      // Fallback - open in new tab so user can print from there
       window.open(previewUrl, "_blank", "noopener,noreferrer");
     }
   };
