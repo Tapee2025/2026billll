@@ -1,38 +1,51 @@
 # Tapee Cement — GST Tax Invoice Generator (PRD)
 
 ## Original problem statement
-Business owner needs to print invoices onto **blank paper that only carries the pre-printed company letterhead** at the top. The app must generate the **entire invoice layout** (borders, boxes, line-item table, GST tax totals, bank details, terms, QR, signature) below a blank letterhead band, replicating the company's reference bill. Data entry stays simple; the printout is a full, ready GST tax invoice.
+Business owner needs to produce GST tax invoices for Tapee Cement Industries. After iterating,
+the FINAL approach (user's explicit choice): the user supplies their **exact official invoice
+PDF template** (letterhead + all boxes/labels + constant values already printed). The app must
+**only fill the blank/variable fields** by overlaying text at precise coordinates, so every
+printout is a pixel-perfect match of the reference bill. Print on plain A4 at 100%.
 
-Earlier iterations produced only a coordinate text-overlay for pre-printed stationery; this has now been **replaced** by full-page generation on blank letterhead paper.
-
-## Architecture (current)
-- 100% serverless **React SPA** (no backend server). Hosted on Netlify.
-- **jsPDF** (unit: cm) draws the full A4 invoice in-browser.
-- **qrcode** generates a live UPI payment QR (encodes the bill amount).
-- **Supabase** (Postgres) stores editable company/bank/calc settings in table `invoice_settings`, single row `key='default'`, JSON in `data`.
-- Env: `REACT_APP_SUPABASE_URL`, `REACT_APP_SUPABASE_KEY`, `REACT_APP_BACKEND_URL` (preview only).
+## Architecture (100% serverless frontend)
+- React SPA. No backend server.
+- PDF: **pdf-lib** loads `public/template/tax_invoice_template.pdf` and overlays text into blank fields.
+- QR / letterhead / product / bank / tax% / terms are BAKED into the template (not drawn by us).
+- Settings persisted to **Supabase** table `invoice_settings` (single row key='default').
+- Calc constants: bags_per_mt = 20, gst_percent = 18 (cement, 9% CGST + 9% SGST).
 
 ## Key files
-- `src/lib/defaults.js` — fixed company constants, GST %, letterhead cm, backfill.
-- `src/lib/pdf.js` — full-page invoice drawing (all coordinates in cm; top `letterhead_cm` left blank; every y shifts with letterhead height).
-- `src/lib/settings.js` — Supabase fetch/save/reset.
-- `src/pages/FillInvoicePage.jsx` — data entry form, auto-calc (bags→MT, GST), builds payload.
-- `src/pages/SettingsPage.jsx` — edit company/bank/terms/GST%/letterhead.
+- `src/lib/pdf.js` — `generatePdfBlob(settings, data)`: async; fetches the template PDF, draws only
+  variable fields with pdf-lib at hardcoded coordinates (baseline-from-top; y = 841.5 - yt).
+- `src/lib/numberToWords.js` — `amountWords()` (reference style, no "Rupees" prefix), `fmt()` Indian grouping.
+- `src/pages/FillInvoicePage.jsx` — form trimmed to variable fields only; auto totals; preview/print/download.
+- `src/pages/SettingsPage.jsx` — company/calc settings (company fields now largely informational since
+  they are baked into the template; GST% & bags/MT still drive calculations).
+- `public/template/tax_invoice_template.pdf` — the user's exact official template (source of truth).
 
-## Business rules
-- Cement HSN **25232930**, **GST 18% (9% CGST + 9% SGST)**.
-- 1 MT = 20 bags (editable).
-- Price/Bag entered is **inclusive of GST**; taxable, tax split, and grand total are derived.
-- Amount-in-words: Bill Amount + Total GST (Indian numbering).
-- Letterhead blank band default **4.0 cm** (editable).
+## Blank fields overlaid (variable per invoice)
+Invoice No, Invoice Date, P.O. Date, Bill To, Ship To, PAN(Bill), PAN(Ship), Week No, Vehicle No,
+EWAY Bill No, EWAY Valid Till, Region, Destination, line-item numbers (MT, No. Of Bags, Rate Per MT,
+Amount), Sub Total, Taxable Amount, Central Tax amt, State/UT Tax amt, Grand Total, TOTAL GST (words),
+BILL AMOUNT (words).
 
-## Implemented (2026-06)
-- Full-page GST invoice matching the reference bill: title, GSTIN/PAN/MSME, place-of-supply/PO/invoice, Bill To/Ship To boxes, state/PAN/transport, line-item table (SrNo, Product Name, HSN, U.O.M, MT, No. of Bags, Rate Per MT, Cur, Amount), amount-in-words, driver/EWAY/valid-till, party code/region/destination, bank block, terms, totals block, live UPI QR, signature.
-- Company/bank/terms/GST%/letterhead editable in Settings (Supabase).
-- Verified via rendered PDF: sample matches reference (Taxable ₹12,288.14, Total GST ₹2,211.86, Grand Total ₹14,500.00).
+## Baked in template (constant — change by editing the template PDF, not the app)
+Letterhead, GSTIN 24AACFT8766G1ZW, PAN AACFT8766G, MSME, Place of Supply 24-Gujarat, State Code 24,
+P.O. No SELF, Mode of Transport ROAD, Freight TO PAY, Transporter SELF, L.R. No NA, Driver Mobile NA,
+Party Code NA, Product P.P.C. PREMIUM CEMENT + HSN 25232930, UOM MT, Currency ₹, bank details, UPI QR,
+tax % 9.00%, Terms & Condition, signature/seal.
 
-## Backlog (P2)
-- Customer address book / quick auto-fill.
-- Multi-copy printing (Original / Duplicate / Triplicate labels).
-- Optional toggle to also print the letterhead header (for digital/email PDF copies).
-- Save/recall past invoices.
+## Status — DONE & verified (Jun 2026)
+- Template-overlay generation: implemented and testing_agent verified 100% (iteration_5.json).
+  All overlaid values + baked constants present; totals exact (Taxable 12,288.14 / CGST+SGST 1,105.93
+  each / Grand 14,500.00); words correct; download & open-in-new-tab work; single A4 page.
+
+## Backlog / future (P2)
+- Rupee ₹ glyph is baked in template (fine). If we ever redraw, embed a Unicode font.
+- Multi-product invoices: template bakes a single product row; extra rows overlay product+UOM (rare).
+- Trim SettingsPage to only calculation settings + a note that design comes from the template.
+- Saved invoices history (search & reprint); customer address book auto-fill.
+- Guard amountWords() paise rounding edge case (0.995 -> 100 paise).
+
+## Deploy
+- Static Netlify build (see DEPLOYMENT.md / netlify.toml). Supabase keys in frontend/.env.
