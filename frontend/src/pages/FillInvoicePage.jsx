@@ -41,7 +41,7 @@ const FIELD_LABELS = {
   po_date: "P.O. Date",
   invoice_no: "Invoice No",
   invoice_date: "Invoice Date",
-  pan_no_left: "PAN No (Bill To)",
+  pan_no_left: "PAN No",
   pan_no_right: "PAN No (Ship To)",
   week_no: "Week No",
   mode_of_transport: "Mode of Transport",
@@ -57,16 +57,23 @@ const FIELD_LABELS = {
   destination: "Destination",
 };
 
+function todayStr() {
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
 const SINGLE_GROUPS = [
   {
     title: "Invoice Details",
-    description: "Printed at the top of the invoice",
-    fields: ["invoice_no", "invoice_date", "po_date"],
+    description: "Invoice No and Date (P.O. Date is kept same as Invoice Date)",
+    fields: ["invoice_no", "invoice_date"],
   },
   {
-    title: "PAN Numbers",
-    description: "Customer PAN under STATE CODE on both sides",
-    fields: ["pan_no_left", "pan_no_right"],
+    title: "PAN Number",
+    description: "Customer PAN — used for both Bill To and Ship To",
+    fields: ["pan_no_left"],
   },
   {
     title: "Transport",
@@ -101,7 +108,11 @@ export default function FillInvoicePage() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [singleValues, setSingleValues] = useState({});
+  const [singleValues, setSingleValues] = useState(() => ({
+    invoice_date: todayStr(),
+    eway_bill_no: "NA",
+    eway_valid_till: "NA",
+  }));
   const [billTo, setBillTo] = useState("");
   const [shipTo, setShipTo] = useState("");
   const [sameAsBillTo, setSameAsBillTo] = useState(false);
@@ -202,7 +213,11 @@ export default function FillInvoicePage() {
       }));
 
     return {
-      fields: singleValues,
+      fields: {
+        ...singleValues,
+        po_date: singleValues.invoice_date || "",
+        pan_no_right: singleValues.pan_no_left || "",
+      },
       bill_to: billTo,
       ship_to: finalShipTo,
       line_items: lineItems,

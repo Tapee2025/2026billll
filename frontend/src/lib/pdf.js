@@ -25,20 +25,44 @@ export async function generatePdfBlob(settings, data) {
   const pdf = await PDFDocument.load(bytes);
   const page = pdf.getPages()[0];
   const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const black = rgb(0, 0, 0);
+  const white = rgb(1, 1, 1);
 
-  // Blank out the pre-printed letterhead band at the top so the invoice can be
-  // printed on the customer's own letterhead paper. The letterhead graphic ends
-  // at ~105 pts (~3.7 cm); we cover up to 109 pts (just above the "TAX INVOICE"
-  // line at 110.8 pts) so nothing else is affected.
-  const LETTERHEAD_COVER_PTS = 109;
+  // Blank out the pre-printed letterhead band AND the baked "TAX INVOICE"/
+  // "Original" title (both are redrawn 2mm lower below), so the invoice prints
+  // cleanly on the customer's own letterhead paper without touching its design.
   page.drawRectangle({
     x: 0,
-    y: PAGE_H - LETTERHEAD_COVER_PTS,
+    y: PAGE_H - 124,
     width: page.getWidth(),
-    height: LETTERHEAD_COVER_PTS,
-    color: rgb(1, 1, 1),
+    height: 124,
+    color: white,
   });
+
+  // Redraw the title shifted 2mm (~5.7pt) down.
+  const TITLE_SHIFT = 5.7;
+  {
+    const t = "TAX INVOICE";
+    const w = fontBold.widthOfTextAtSize(t, 10);
+    const cx = (263.2 + 338.3) / 2;
+    page.drawText(t, {
+      x: cx - w / 2,
+      y: PAGE_H - (120.8 + TITLE_SHIFT),
+      size: 10,
+      font: fontBold,
+      color: black,
+    });
+    const o = "Original";
+    const ow = fontBold.widthOfTextAtSize(o, 8);
+    page.drawText(o, {
+      x: 564.7 - ow,
+      y: PAGE_H - (119.0 + TITLE_SHIFT),
+      size: 8,
+      font: fontBold,
+      color: black,
+    });
+  }
 
   // draw text; `yt` is the baseline distance from the TOP of the page (matches
   // the coordinates extracted from the template labels).
@@ -86,6 +110,16 @@ export async function generatePdfBlob(settings, data) {
   draw(F.region, 294, 583.3);
   draw(F.destination, 298, 598.4);
 
+  // ---- Un-bold the baked "NA" next to PARTY CODE: cover it and redraw normal ----
+  page.drawRectangle({
+    x: 299,
+    y: PAGE_H - 570,
+    width: 24,
+    height: 13,
+    color: white,
+  });
+  draw("NA", 301.8, 567.9, { size: 9 });
+
   // ---- Line items ----
   // Row 0 aligns with the template's baked product/UOM/currency; only the
   // numeric columns are filled. Extra rows (rare) also print product + UOM.
@@ -97,8 +131,8 @@ export async function generatePdfBlob(settings, data) {
       draw(r.product, 63, yt);
       draw("MT", 241, yt);
     }
-    draw(r.mt, 328, yt, { align: "right" });
-    draw(r.no_of_bags, 398, yt, { align: "right" });
+    draw(r.mt, 321, yt, { align: "right" });
+    draw(r.no_of_bags, 393, yt, { align: "right" });
     draw(r.rate_per_mt, 456, yt, { align: "right" });
     draw(r.amount, 563, yt, { align: "right" });
   });
