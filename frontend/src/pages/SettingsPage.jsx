@@ -1,158 +1,36 @@
 import React, { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Save, RotateCcw, Monitor, Smartphone } from "lucide-react";
-import {
-  fetchSettings,
-  saveSettings,
-  resetSettings,
-} from "@/lib/settings";
-import { detectDevice, DEVICE_LABELS } from "@/lib/device";
+import { Loader2, Save, RotateCcw } from "lucide-react";
+import { fetchSettings, saveSettings, resetSettings } from "@/lib/settings";
 
-function NumberInput({ value, onChange, testId, step = 0.1, suffix = "cm" }) {
-  return (
-    <div className="relative">
-      <Input
-        type="number"
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="pr-9 mono"
-        data-testid={testId}
-      />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-        {suffix}
-      </span>
-    </div>
-  );
-}
+const COMPANY_FIELDS = [
+  { key: "name", label: "Company Name", full: true },
+  { key: "gstin", label: "GSTIN No." },
+  { key: "pan", label: "Company PAN" },
+  { key: "place_of_supply", label: "Place of Supply" },
+  { key: "state_code", label: "State Code" },
+  { key: "hsn", label: "Product HSN Code" },
+];
 
-function SingleFieldRow({ fieldKey, cfg, onChange }) {
-  return (
-    <div
-      className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end py-3 border-b border-border/60"
-      data-testid={`single-row-${fieldKey}`}
-    >
-      <div className="md:col-span-3">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-          Field
-        </Label>
-        <div className="mt-1.5 text-sm font-medium">{cfg.label}</div>
-        <div className="text-[10px] text-muted-foreground mono">{fieldKey}</div>
-      </div>
-      <div className="md:col-span-2">
-        <Label className="text-xs uppercase tracking-wide">Top</Label>
-        <NumberInput
-          value={cfg.top}
-          onChange={(v) => onChange({ ...cfg, top: v })}
-          testId={`top-${fieldKey}`}
-        />
-      </div>
-      <div className="md:col-span-2">
-        <Label className="text-xs uppercase tracking-wide">Left</Label>
-        <NumberInput
-          value={cfg.left}
-          onChange={(v) => onChange({ ...cfg, left: v })}
-          testId={`left-${fieldKey}`}
-        />
-      </div>
-      <div className="md:col-span-2">
-        <Label className="text-xs uppercase tracking-wide">Font Size</Label>
-        <NumberInput
-          value={cfg.font_size}
-          onChange={(v) => onChange({ ...cfg, font_size: v })}
-          step={0.5}
-          suffix="pt"
-          testId={`fs-${fieldKey}`}
-        />
-      </div>
-      <div className="md:col-span-3 flex items-center gap-2 pb-2">
-        <Switch
-          checked={!!cfg.bold}
-          onCheckedChange={(v) => onChange({ ...cfg, bold: v })}
-          data-testid={`bold-${fieldKey}`}
-        />
-        <Label className="text-sm">Bold (typewriter)</Label>
-      </div>
-    </div>
-  );
-}
-
-function BoxFieldRow({ fieldKey, cfg, onChange }) {
-  return (
-    <div
-      className="space-y-3 py-3 border-b border-border/60"
-      data-testid={`box-row-${fieldKey}`}
-    >
-      <div className="text-sm font-semibold">{cfg.label}</div>
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <div>
-          <Label className="text-xs uppercase">Top</Label>
-          <NumberInput
-            value={cfg.top}
-            onChange={(v) => onChange({ ...cfg, top: v })}
-            testId={`box-top-${fieldKey}`}
-          />
-        </div>
-        <div>
-          <Label className="text-xs uppercase">Left</Label>
-          <NumberInput
-            value={cfg.left}
-            onChange={(v) => onChange({ ...cfg, left: v })}
-            testId={`box-left-${fieldKey}`}
-          />
-        </div>
-        <div>
-          <Label className="text-xs uppercase">Width</Label>
-          <NumberInput
-            value={cfg.width}
-            onChange={(v) => onChange({ ...cfg, width: v })}
-            testId={`box-w-${fieldKey}`}
-          />
-        </div>
-        <div>
-          <Label className="text-xs uppercase">Height</Label>
-          <NumberInput
-            value={cfg.height}
-            onChange={(v) => onChange({ ...cfg, height: v })}
-            testId={`box-h-${fieldKey}`}
-          />
-        </div>
-        <div>
-          <Label className="text-xs uppercase">Line Gap</Label>
-          <NumberInput
-            value={cfg.line_height}
-            onChange={(v) => onChange({ ...cfg, line_height: v })}
-            testId={`box-lh-${fieldKey}`}
-          />
-        </div>
-        <div>
-          <Label className="text-xs uppercase">Font Size</Label>
-          <NumberInput
-            value={cfg.font_size}
-            onChange={(v) => onChange({ ...cfg, font_size: v })}
-            step={0.5}
-            suffix="pt"
-            testId={`box-fs-${fieldKey}`}
-          />
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Switch
-          checked={!!cfg.bold}
-          onCheckedChange={(v) => onChange({ ...cfg, bold: v })}
-          data-testid={`box-bold-${fieldKey}`}
-        />
-        <Label className="text-sm">Bold</Label>
-      </div>
-    </div>
-  );
-}
+const BANK_FIELDS = [
+  { key: "bank_name", label: "Bank Name" },
+  { key: "account_no", label: "A/C No." },
+  { key: "ifsc", label: "IFSC Code" },
+  { key: "branch", label: "Branch" },
+  { key: "account_type", label: "A/C Type" },
+  { key: "upi_id", label: "UPI ID (for payment QR)" },
+];
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
@@ -162,8 +40,7 @@ export default function SettingsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const s = await fetchSettings();
-        setSettings(s);
+        setSettings(await fetchSettings());
       } catch (e) {
         toast.error("Failed to load settings");
       } finally {
@@ -172,39 +49,21 @@ export default function SettingsPage() {
     })();
   }, []);
 
-  const updateSingle = (key, newCfg) => {
-    setSettings((prev) => ({
-      ...prev,
-      single_fields: { ...prev.single_fields, [key]: newCfg },
-    }));
-  };
+  const setCompany = (key, value) =>
+    setSettings((p) => ({ ...p, company: { ...p.company, [key]: value } }));
 
-  const updateBox = (key, newCfg) => {
-    setSettings((prev) => ({
-      ...prev,
-      box_fields: { ...prev.box_fields, [key]: newCfg },
+  const setCalc = (key, value) =>
+    setSettings((p) => ({
+      ...p,
+      calculation: { ...p.calculation, [key]: value },
     }));
-  };
 
-  const updateLineItems = (patch) => {
-    setSettings((prev) => ({
-      ...prev,
-      line_items: { ...prev.line_items, ...patch },
-    }));
-  };
-
-  const updateColumn = (colKey, patch) => {
-    setSettings((prev) => ({
-      ...prev,
-      line_items: {
-        ...prev.line_items,
-        columns: {
-          ...prev.line_items.columns,
-          [colKey]: { ...prev.line_items.columns[colKey], ...patch },
-        },
-      },
-    }));
-  };
+  const setTerm = (idx, value) =>
+    setSettings((p) => {
+      const terms = [...(p.company.terms || [])];
+      terms[idx] = value;
+      return { ...p, company: { ...p.company, terms } };
+    });
 
   const handleSave = async () => {
     setSaving(true);
@@ -221,35 +80,14 @@ export default function SettingsPage() {
   const handleReset = async () => {
     setSaving(true);
     try {
-      const fresh = await resetSettings();
-      setSettings(fresh);
-      toast.success("Reset to default measurements");
+      setSettings(await resetSettings());
+      toast.success("Reset to defaults");
     } catch (e) {
       toast.error("Failed to reset");
     } finally {
       setSaving(false);
     }
   };
-
-  const [calibTab, setCalibTab] = useState(detectDevice());
-  const updateCalib = (deviceKey, patch) => {
-    setSettings((prev) => ({
-      ...prev,
-      calibration: {
-        ...(prev.calibration || {}),
-        [deviceKey]: { ...(prev.calibration?.[deviceKey] || {}), ...patch },
-      },
-    }));
-  };
-  const currentCal =
-    settings?.calibration?.[calibTab] || {
-      vertical_set: 1,
-      vertical_actual: 1,
-      horizontal_set: 1,
-      horizontal_actual: 1,
-      vertical_offset: 0,
-      horizontal_offset: 0,
-    };
 
   if (loading || !settings) {
     return (
@@ -259,18 +97,19 @@ export default function SettingsPage() {
     );
   }
 
+  const c = settings.company || {};
+
   return (
     <div className="space-y-6" data-testid="settings-page">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">
-            Print Field Settings
+            Company &amp; Invoice Settings
           </h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            All measurements are in <span className="mono">cm</span> on A4
-            paper (21 × 29.7 cm). <strong>Top</strong> = distance from top edge
-            of paper. <strong>Left</strong> = distance from left edge. Adjust
-            these to align with your pre-printed invoice exactly.
+            These fixed details are printed on every invoice. Verify them once
+            (especially the GSTIN and bank details) — they are stored securely
+            in the cloud and reused automatically.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -283,11 +122,7 @@ export default function SettingsPage() {
             <RotateCcw className="w-4 h-4 mr-2" />
             Reset to Defaults
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            data-testid="btn-save-settings"
-          >
+          <Button onClick={handleSave} disabled={saving} data-testid="btn-save-settings">
             {saving ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
@@ -298,389 +133,126 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <Card>
+      <Card data-testid="company-card">
         <CardHeader>
-          <CardTitle>Single-Line Fields</CardTitle>
+          <CardTitle className="text-lg">Company Details</CardTitle>
           <CardDescription>
-            Each field has Top (cm) and Left (cm) coordinates. Default values
-            pre-filled — adjust as needed.
+            GSTIN, PAN and place of supply printed in the header block.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {Object.entries(settings.single_fields).map(([key, cfg]) => (
-            <SingleFieldRow
-              key={key}
-              fieldKey={key}
-              cfg={cfg}
-              onChange={(c) => updateSingle(key, c)}
-            />
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Address Boxes (Bill To / Ship To)</CardTitle>
-          <CardDescription>
-            Multi-line text boxes. Width/Height define the printable area.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {Object.entries(settings.box_fields).map(([key, cfg]) => (
-            <BoxFieldRow
-              key={key}
-              fieldKey={key}
-              cfg={cfg}
-              onChange={(c) => updateBox(key, c)}
-            />
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Product Line Items</CardTitle>
-          <CardDescription>
-            Set the position of the first row, the spacing between rows, and
-            the left position of each column.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <Label className="text-xs uppercase">First Row Top</Label>
-              <NumberInput
-                value={settings.line_items.first_row_top}
-                onChange={(v) => updateLineItems({ first_row_top: v })}
-                testId="li-first-row-top"
-              />
-            </div>
-            <div>
-              <Label className="text-xs uppercase">Row Height</Label>
-              <NumberInput
-                value={settings.line_items.row_height}
-                onChange={(v) => updateLineItems({ row_height: v })}
-                testId="li-row-height"
-              />
-            </div>
-            <div>
-              <Label className="text-xs uppercase">Max Rows</Label>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {COMPANY_FIELDS.map((f) => (
+            <div key={f.key} className={`space-y-1.5 ${f.full ? "md:col-span-2" : ""}`}>
+              <Label className="text-xs uppercase tracking-wide">{f.label}</Label>
               <Input
-                type="number"
-                value={settings.line_items.max_rows}
-                onChange={(e) =>
-                  updateLineItems({
-                    max_rows: parseInt(e.target.value) || 1,
-                  })
-                }
+                data-testid={`company-${f.key}`}
                 className="mono"
-                data-testid="li-max-rows"
+                value={c[f.key] || ""}
+                onChange={(e) => setCompany(f.key, e.target.value)}
               />
             </div>
-            <div>
-              <Label className="text-xs uppercase">Font Size</Label>
-              <NumberInput
-                value={settings.line_items.font_size}
-                onChange={(v) => updateLineItems({ font_size: v })}
-                step={0.5}
-                suffix="pt"
-                testId="li-font-size"
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card data-testid="bank-card">
+        <CardHeader>
+          <CardTitle className="text-lg">Bank &amp; Payment Details</CardTitle>
+          <CardDescription>
+            Printed in the bank block. The UPI ID is encoded into the payment
+            QR code (with the bill amount) on every invoice.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {BANK_FIELDS.map((f) => (
+            <div key={f.key} className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide">{f.label}</Label>
+              <Input
+                data-testid={`company-${f.key}`}
+                className="mono"
+                value={c[f.key] || ""}
+                onChange={(e) => setCompany(f.key, e.target.value)}
               />
             </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card data-testid="print-card">
+        <CardHeader>
+          <CardTitle className="text-lg">Print &amp; Calculation</CardTitle>
+          <CardDescription>
+            Letterhead height (blank top band), bags-to-MT conversion and GST
+            rate. Cement (HSN 252329) is <strong>28%</strong> (14% CGST + 14%
+            SGST).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wide">
+              Letterhead Height (cm)
+            </Label>
+            <Input
+              type="number"
+              step="0.1"
+              data-testid="setting-letterhead"
+              className="mono"
+              value={settings.letterhead_cm ?? 4}
+              onChange={(e) =>
+                setSettings((p) => ({
+                  ...p,
+                  letterhead_cm: parseFloat(e.target.value) || 0,
+                }))
+              }
+            />
           </div>
-          <Separator />
-          <div className="space-y-3">
-            <div className="text-sm font-semibold">
-              Column Positions (per row)
-            </div>
-            <div className="text-xs text-muted-foreground">
-              <strong>Left</strong> = horizontal position. <strong>Top
-              Offset</strong> = vertical adjustment relative to row baseline
-              (use negative values for fields like Product Name that print
-              above the HSN code).
-            </div>
-            {Object.entries(settings.line_items.columns).map(([key, col]) => (
-              <div
-                key={key}
-                className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
-                data-testid={`col-row-${key}`}
-              >
-                <div className="md:col-span-4 text-sm font-medium">
-                  {col.label}
-                  <span className="text-[10px] text-muted-foreground mono ml-2">
-                    {key}
-                  </span>
-                </div>
-                <div className="md:col-span-4">
-                  <Label className="text-xs uppercase">Left</Label>
-                  <NumberInput
-                    value={col.left}
-                    onChange={(v) => updateColumn(key, { left: v })}
-                    testId={`col-left-${key}`}
-                  />
-                </div>
-                <div className="md:col-span-4">
-                  <Label className="text-xs uppercase">Top Offset</Label>
-                  <NumberInput
-                    value={col.top_offset ?? 0}
-                    onChange={(v) =>
-                      updateColumn(key, { top_offset: v })
-                    }
-                    testId={`col-topoff-${key}`}
-                  />
-                </div>
-              </div>
-            ))}
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wide">Bags per MT</Label>
+            <Input
+              type="number"
+              step="1"
+              data-testid="setting-bags-per-mt"
+              className="mono"
+              value={settings.calculation?.bags_per_mt ?? 20}
+              onChange={(e) => setCalc("bags_per_mt", parseFloat(e.target.value) || 0)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wide">
+              Total GST % (CGST + SGST)
+            </Label>
+            <Input
+              type="number"
+              step="0.5"
+              data-testid="setting-gst-percent"
+              className="mono"
+              value={settings.calculation?.gst_percent ?? 28}
+              onChange={(e) => setCalc("gst_percent", parseFloat(e.target.value) || 0)}
+            />
           </div>
         </CardContent>
       </Card>
 
-      <Card data-testid="calc-card">
+      <Card data-testid="terms-card">
         <CardHeader>
-          <CardTitle>Calculation Rules</CardTitle>
-          <CardDescription>
-            Used to auto-calculate MT, Rate per MT, Amount and GST. Defaults: 1
-            MT = 20 bags · 18% GST (split equally between Central and State).
-          </CardDescription>
+          <CardTitle className="text-lg">Terms &amp; Conditions</CardTitle>
+          <CardDescription>Printed at the bottom-left of the invoice.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs uppercase">Bags per MT</Label>
-              <NumberInput
-                value={settings.calculation?.bags_per_mt ?? 20}
-                onChange={(v) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    calculation: {
-                      ...(prev.calculation || {}),
-                      bags_per_mt: v,
-                    },
-                  }))
-                }
-                step={1}
-                suffix="bags"
-                testId="calc-bags-per-mt"
-              />
-            </div>
-            <div>
-              <Label className="text-xs uppercase">
-                Total GST % (CGST + SGST)
-              </Label>
-              <NumberInput
-                value={settings.calculation?.gst_percent ?? 18}
-                onChange={(v) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    calculation: {
-                      ...(prev.calculation || {}),
-                      gst_percent: v,
-                    },
-                  }))
-                }
-                step={0.5}
-                suffix="%"
-                testId="calc-gst-percent"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card data-testid="calib-card">
-        <CardHeader>
-          <CardTitle>Print Calibration</CardTitle>
-          <CardDescription>
-            Each device prints differently. Calibrate{" "}
-            <strong>Desktop</strong> and <strong>iPhone</strong>{" "}
-            independently — the app picks the right profile automatically based
-            on which device you&apos;re using. Print one PDF, measure with a
-            ruler, enter the numbers below.
-            <br />
-            <span className="text-xs">
-              <strong>Tip:</strong> on Desktop, set{" "}
-              <em>Scale = 100% / Actual Size</em> in the Print dialog. On
-              iPhone, use <em>Open in New Tab → Share → Print</em>.
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 flex-wrap" data-testid="calib-device-tabs">
-            <Button
-              type="button"
-              variant={calibTab === "desktop" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setCalibTab("desktop")}
-              data-testid="calib-tab-desktop"
-            >
-              <Monitor className="w-4 h-4 mr-2" />
-              {DEVICE_LABELS.desktop}
-              {detectDevice() === "desktop" && (
-                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-foreground/10">
-                  CURRENT
-                </span>
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant={calibTab === "iphone" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setCalibTab("iphone")}
-              data-testid="calib-tab-iphone"
-            >
-              <Smartphone className="w-4 h-4 mr-2" />
-              {DEVICE_LABELS.iphone}
-              {detectDevice() === "iphone" && (
-                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-foreground/10">
-                  CURRENT
-                </span>
-              )}
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">
-                Vertical (Top, cm) Calibration
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs uppercase">You set</Label>
-                  <NumberInput
-                    value={currentCal.vertical_set ?? 1}
-                    onChange={(v) =>
-                      updateCalib(calibTab, { vertical_set: v })
-                    }
-                    testId="calib-v-set"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs uppercase">Actually printed</Label>
-                  <NumberInput
-                    value={currentCal.vertical_actual ?? 1}
-                    onChange={(v) =>
-                      updateCalib(calibTab, { vertical_actual: v })
-                    }
-                    testId="calib-v-actual"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs uppercase">
-                  Vertical Offset (added after scaling)
-                </Label>
-                <NumberInput
-                  value={currentCal.vertical_offset ?? 0}
-                  onChange={(v) =>
-                    updateCalib(calibTab, { vertical_offset: v })
-                  }
-                  testId="calib-v-offset"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground mono">
-                Vertical scale ={" "}
-                {(
-                  (currentCal.vertical_set || 1) /
-                  (currentCal.vertical_actual || 1)
-                ).toFixed(4)}
-                ×
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">
-                Horizontal (Left, cm) Calibration
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs uppercase">You set</Label>
-                  <NumberInput
-                    value={currentCal.horizontal_set ?? 1}
-                    onChange={(v) =>
-                      updateCalib(calibTab, { horizontal_set: v })
-                    }
-                    testId="calib-h-set"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs uppercase">Actually printed</Label>
-                  <NumberInput
-                    value={currentCal.horizontal_actual ?? 1}
-                    onChange={(v) =>
-                      updateCalib(calibTab, { horizontal_actual: v })
-                    }
-                    testId="calib-h-actual"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs uppercase">
-                  Horizontal Offset (added after scaling)
-                </Label>
-                <NumberInput
-                  value={currentCal.horizontal_offset ?? 0}
-                  onChange={(v) =>
-                    updateCalib(calibTab, { horizontal_offset: v })
-                  }
-                  testId="calib-h-offset"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground mono">
-                Horizontal scale ={" "}
-                {(
-                  (currentCal.horizontal_set || 1) /
-                  (currentCal.horizontal_actual || 1)
-                ).toFixed(4)}
-                ×
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 border-t border-border/60 pt-4">
-            <div className="text-sm font-semibold">
-              Rotation Correction
-              <span className="text-xs text-muted-foreground font-normal ml-2">
-                (fixes printed lines that tilt up or down across the page)
+        <CardContent className="space-y-3">
+          {(c.terms || []).map((t, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className="mono text-sm text-muted-foreground pt-2 w-5">
+                {i + 1}.
               </span>
+              <Textarea
+                data-testid={`term-${i}`}
+                rows={2}
+                className="text-sm"
+                value={t}
+                onChange={(e) => setTerm(i, e.target.value)}
+              />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-              <div>
-                <Label className="text-xs uppercase">
-                  Rotation (degrees)
-                </Label>
-                <NumberInput
-                  value={currentCal.rotation_deg ?? 0}
-                  onChange={(v) =>
-                    updateCalib(calibTab, { rotation_deg: v })
-                  }
-                  step={0.1}
-                  suffix="°"
-                  testId="calib-rotation"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                <strong>Positive</strong> if text tilts UP toward the right
-                edge.
-                <br />
-                <strong>Negative</strong> if text tilts DOWN toward the right.
-                <br />
-                Adjust by 0.1° at a time. Most printers need 0.0° – 2.0°.
-              </div>
-            </div>
-          </div>
-
-          <div className="text-xs text-muted-foreground bg-secondary p-3 rounded">
-            <strong>You are editing:</strong>{" "}
-            {DEVICE_LABELS[calibTab]} profile.
-            <br />
-            <strong>Example:</strong> you set Bill Amount top = 24.5 cm but it
-            printed at 20.4 cm. Enter{" "}
-            <span className="mono">You set = 24.5</span> and{" "}
-            <span className="mono">Actually printed = 20.4</span>. The scale
-            becomes 1.2010× and every field will be drawn slightly lower so
-            the printer&apos;s shrink lands them where you wanted. Save
-            settings, regenerate the PDF, and reprint.
-          </div>
+          ))}
         </CardContent>
       </Card>
 

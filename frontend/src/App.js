@@ -29,10 +29,10 @@ function Header() {
               className="text-lg font-bold tracking-tight"
               data-testid="app-title"
             >
-              Invoice Overlay Printer
+              GST Tax Invoice Generator
             </h1>
             <p className="text-xs text-muted-foreground mono">
-              A4 · Pre-printed invoice filler
+              A4 · Full invoice on letterhead paper
             </p>
           </div>
         </div>
@@ -47,7 +47,7 @@ function Header() {
             data-testid="nav-settings"
           >
             <SettingsIcon className="w-4 h-4" />
-            Print Field Settings
+            Company Settings
           </NavLink>
         </nav>
       </div>

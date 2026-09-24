@@ -1,122 +1,52 @@
-// Default print field positions (cm) — moved from FastAPI backend so the app
-// can run entirely in the browser without a backend server.
-// All measurements are top/left from the top-left corner of A4 paper.
+// Default configuration for the full-page GST tax invoice generator.
+// The app prints the ENTIRE invoice layout on blank paper that only carries
+// the pre-printed company letterhead at the top. The top band (letterhead_cm)
+// is left blank so it lands under the printed letterhead.
 
-export const DEFAULT_SINGLE_FIELDS = {
-  po_no:           { label: "P.O. No",            top: 7.5,  left: 5.0,  font_size: 11, bold: true },
-  po_date:         { label: "P.O. Date",          top: 7.9,  left: 5.0,  font_size: 11, bold: true },
-  invoice_no:      { label: "Invoice No",         top: 7.0,  left: 14.2, font_size: 11, bold: true },
-  invoice_date:    { label: "Invoice Date",       top: 7.6,  left: 14.2, font_size: 11, bold: true },
-  pan_no_left:     { label: "PAN No (Bill To)",   top: 13.0, left: 3.7,  font_size: 11, bold: true },
-  pan_no_right:    { label: "PAN No (Ship To)",   top: 13.0, left: 13.2, font_size: 11, bold: true },
-  week_no:         { label: "Week No",            top: 14.0, left: 4.5,  font_size: 11, bold: true },
-  mode_of_transport: { label: "Mode of Transport", top: 14.5, left: 4.5, font_size: 11, bold: true },
-  freight:         { label: "Freight",            top: 15.0, left: 4.5,  font_size: 11, bold: true },
-  transporter_name:{ label: "Transporter Name",   top: 14.0, left: 14.5, font_size: 11, bold: true },
-  lr_no:           { label: "L.R. No",            top: 14.5, left: 14.5, font_size: 11, bold: true },
-  vehicle_no:      { label: "Vehicle No",         top: 15.0, left: 14.5, font_size: 11, bold: true },
-  driver_mobile:   { label: "Driver Mobile",      top: 21.5, left: 4.0,  font_size: 11, bold: true },
-  eway_bill_no:    { label: "EWAY Bill No",       top: 22.0, left: 4.0,  font_size: 11, bold: true },
-  tpca_code:       { label: "TPCA Code",          top: 21.5, left: 9.5,  font_size: 11, bold: true },
-  region:          { label: "Region",             top: 22.0, left: 9.5,  font_size: 11, bold: true },
-  destination:     { label: "Destination",        top: 22.5, left: 9.5,  font_size: 11, bold: true },
-  taxable_amount:  { label: "Taxable Amount",     top: 21.5, left: 17.5, font_size: 11, bold: true },
-  central_tax:     { label: "Central Tax Amt",    top: 22.0, left: 17.5, font_size: 11, bold: true },
-  state_tax:       { label: "State/UT Tax Amt",   top: 22.5, left: 17.5, font_size: 11, bold: true },
-  sub_total:       { label: "Sub Total",          top: 21.0, left: 17.5, font_size: 11, bold: true },
-  grand_total:     { label: "Grand Total",        top: 23.0, left: 17.5, font_size: 11, bold: true },
-  total_gst:       { label: "Total GST",          top: 24.0, left: 4.0,  font_size: 11, bold: true },
-  bill_amount:     { label: "Bill Amount",        top: 24.5, left: 4.0,  font_size: 11, bold: true },
-};
-
-export const DEFAULT_BOX_FIELDS = {
-  bill_to: { label: "Details of Bill To", top: 9.4, left: 1.5,  width: 8.0, height: 2.6, font_size: 11, bold: true, line_height: 0.5 },
-  ship_to: { label: "Details of Ship To", top: 9.4, left: 11.1, width: 8.0, height: 2.6, font_size: 11, bold: true, line_height: 0.5 },
-};
-
-export const DEFAULT_LINE_ITEMS = {
-  label: "Line Items (per row)",
-  first_row_top: 18.4,
-  row_height: 0.55,
-  max_rows: 8,
-  font_size: 11,
-  bold: true,
-  columns: {
-    product:     { label: "Product Name", left: 2.5,  top_offset: -0.7 },
-    mt:          { label: "MT",           left: 8.7,  top_offset: 0.0 },
-    no_of_bags:  { label: "No. of Bags",  left: 10.5, top_offset: 0.0 },
-    rate_per_mt: { label: "Rate Per MT",  left: 12.7, top_offset: 0.0 },
-    amount:      { label: "Amount",       left: 16.7, top_offset: 0.0 },
-  },
+// Fixed company / bank constants (from the user's reference invoice).
+// Editable on the Settings page and stored in Supabase.
+export const DEFAULT_COMPANY = {
+  name: "TAPEE CEMENT INDUSTRIES",
+  gstin: "24AACFT8766G1ZW",
+  pan: "AACFT8766G",
+  msme: "UDYAM-GJ-20-0030085",
+  place_of_supply: "24-Gujarat",
+  state_code: "24",
+  hsn: "25232930",
+  bank_name: "KARUR VYSYA BANK",
+  account_no: "2135229000000550",
+  ifsc: "KVBL0002135",
+  branch: "NEO MUMBAI",
+  account_type: "CURRENT",
+  upi_id: "kvbupiqr.105000000014364@kvb",
+  terms: [
+    "Goods once sold will not be taken back.",
+    "Interest @18% p.a. will be charged if payment is not made within due date.",
+    "Our risk and responsibility ceases as soon as the goods leave our premises.",
+    "Subject to 'RAJKOT' Jurisdiction only. E.&.O.E",
+  ],
 };
 
 export const DEFAULT_CALCULATION = {
   bags_per_mt: 20,
-  gst_percent: 18.0,
-};
-
-const EMPTY_CALIBRATION = {
-  vertical_set: 1.0,
-  vertical_actual: 1.0,
-  horizontal_set: 1.0,
-  horizontal_actual: 1.0,
-  vertical_offset: 0.0,
-  horizontal_offset: 0.0,
-  rotation_deg: 0.0,
-};
-
-// Two device profiles — desktop and iphone — calibrated independently.
-export const DEFAULT_CALIBRATION = {
-  desktop: { ...EMPTY_CALIBRATION },
-  iphone: { ...EMPTY_CALIBRATION },
+  gst_percent: 18.0, // cement → 18% (9% CGST + 9% SGST)
+  max_rows: 8,
 };
 
 export const DEFAULT_SETTINGS = {
-  single_fields: DEFAULT_SINGLE_FIELDS,
-  box_fields: DEFAULT_BOX_FIELDS,
-  line_items: DEFAULT_LINE_ITEMS,
+  company: DEFAULT_COMPANY,
   calculation: DEFAULT_CALCULATION,
-  calibration: DEFAULT_CALIBRATION,
+  letterhead_cm: 4.0, // blank top band for the pre-printed letterhead
 };
 
-// Backfill any newer keys missing from a previously-saved settings doc.
+// Merge a previously-saved settings doc onto the current defaults so newer
+// keys are always present (and legacy overlay/calibration docs are ignored).
 export function backfillSettings(doc) {
   if (!doc) return DEFAULT_SETTINGS;
-  const out = { ...doc };
-  if (!out.calculation) out.calculation = DEFAULT_CALCULATION;
-
-  // Calibration migration:
-  //  - legacy: a single flat object {vertical_set, vertical_actual, ...} → move under "desktop"
-  //  - missing: use defaults
-  if (!out.calibration) {
-    out.calibration = DEFAULT_CALIBRATION;
-  } else if (
-    out.calibration.vertical_set !== undefined &&
-    !out.calibration.desktop
-  ) {
-    // Legacy flat object — promote to desktop profile, init iphone empty.
-    out.calibration = {
-      desktop: { ...EMPTY_CALIBRATION, ...out.calibration },
-      iphone: { ...EMPTY_CALIBRATION },
-    };
-  } else {
-    if (!out.calibration.desktop)
-      out.calibration.desktop = { ...EMPTY_CALIBRATION };
-    if (!out.calibration.iphone)
-      out.calibration.iphone = { ...EMPTY_CALIBRATION };
-    // Backfill missing rotation_deg in either profile (added later)
-    if (out.calibration.desktop.rotation_deg === undefined)
-      out.calibration.desktop.rotation_deg = 0.0;
-    if (out.calibration.iphone.rotation_deg === undefined)
-      out.calibration.iphone.rotation_deg = 0.0;
-  }
-
-  if (!out.line_items) out.line_items = DEFAULT_LINE_ITEMS;
-  const cols = out.line_items.columns || {};
-  if (!cols.product) cols.product = DEFAULT_LINE_ITEMS.columns.product;
-  Object.values(cols).forEach((c) => {
-    if (c.top_offset === undefined) c.top_offset = 0.0;
-  });
-  out.line_items.columns = cols;
-  return out;
+  return {
+    company: { ...DEFAULT_COMPANY, ...(doc.company || {}) },
+    calculation: { ...DEFAULT_CALCULATION, ...(doc.calculation || {}) },
+    letterhead_cm:
+      typeof doc.letterhead_cm === "number" ? doc.letterhead_cm : 4.0,
+  };
 }

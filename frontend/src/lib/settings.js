@@ -20,22 +20,18 @@ export async function fetchSettings() {
 
 export async function saveSettings(settings) {
   const payload = {
-    single_fields: settings.single_fields,
-    box_fields: settings.box_fields,
-    line_items: settings.line_items,
+    company: settings.company,
     calculation: settings.calculation,
-    calibration: settings.calibration,
+    letterhead_cm: settings.letterhead_cm,
   };
-  const { error } = await supabase
-    .from(TABLE)
-    .upsert(
-      {
-        key: SETTINGS_KEY,
-        data: payload,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "key" }
-    );
+  const { error } = await supabase.from(TABLE).upsert(
+    {
+      key: SETTINGS_KEY,
+      data: payload,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" }
+  );
   if (error) {
     // eslint-disable-next-line no-console
     console.error("Supabase saveSettings error:", error);

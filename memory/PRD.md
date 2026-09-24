@@ -1,59 +1,38 @@
-# Invoice Overlay Printer — PRD
+# Tapee Cement — GST Tax Invoice Generator (PRD)
 
-## Original Problem Statement
-User runs Tapee Cement Industries and currently uses a typewriter to fill blank fields on already-printed A4 invoice paper. They want a web app where:
-1. They fill all fields in a digital form.
-2. The app generates an A4 PDF that has ONLY the typed text positioned at exact cm coordinates.
-3. They put their pre-printed invoice paper in the printer and print this overlay PDF on top.
-4. A separate "Print Field Settings" page lets them adjust Top (cm) and Left (cm) for every field so they can fine-tune alignment.
+## Original problem statement
+Business owner needs to print invoices onto **blank paper that only carries the pre-printed company letterhead** at the top. The app must generate the **entire invoice layout** (borders, boxes, line-item table, GST tax totals, bank details, terms, QR, signature) below a blank letterhead band, replicating the company's reference bill. Data entry stays simple; the printout is a full, ready GST tax invoice.
 
-## User Choices (gathered via ask_human)
-- All visible invoice fields included with adjustable position settings
-- Defaults pre-filled, fully editable & saveable
-- Output: A4 PDF with text-only overlay (printed on pre-printed paper)
-- No invoice saving / database history
-- No login (open app)
+Earlier iterations produced only a coordinate text-overlay for pre-printed stationery; this has now been **replaced** by full-page generation on blank letterhead paper.
 
-## Architecture
-- **Backend**: FastAPI + Motor (Mongo) + ReportLab for PDF generation
-- **Frontend**: React 19 + React Router + shadcn/ui + sonner toasts + Tailwind
-- **DB**: MongoDB single collection `invoice_settings` (one document, `key="default"`)
+## Architecture (current)
+- 100% serverless **React SPA** (no backend server). Hosted on Netlify.
+- **jsPDF** (unit: cm) draws the full A4 invoice in-browser.
+- **qrcode** generates a live UPI payment QR (encodes the bill amount).
+- **Supabase** (Postgres) stores editable company/bank/calc settings in table `invoice_settings`, single row `key='default'`, JSON in `data`.
+- Env: `REACT_APP_SUPABASE_URL`, `REACT_APP_SUPABASE_KEY`, `REACT_APP_BACKEND_URL` (preview only).
 
-## Endpoints
-- `GET  /api/settings` → returns saved settings or defaults
-- `POST /api/settings` → upsert settings document
-- `POST /api/settings/reset` → delete saved doc, returns defaults
-- `POST /api/generate-pdf` → returns A4 PDF blob with text positioned per saved settings
-- `GET  /api/defaults` → canonical defaults
+## Key files
+- `src/lib/defaults.js` — fixed company constants, GST %, letterhead cm, backfill.
+- `src/lib/pdf.js` — full-page invoice drawing (all coordinates in cm; top `letterhead_cm` left blank; every y shifts with letterhead height).
+- `src/lib/settings.js` — Supabase fetch/save/reset.
+- `src/pages/FillInvoicePage.jsx` — data entry form, auto-calc (bags→MT, GST), builds payload.
+- `src/pages/SettingsPage.jsx` — edit company/bank/terms/GST%/letterhead.
 
-## Default Field Positions (cm — from user)
-| Field | Top | Left |
-|---|---|---|
-| P.O. No | 7.5 | 5.0 |
-| P.O. Date | 7.9 | 5.0 |
-| Invoice No | 7.0 | 14.2 |
-| Invoice Date | 7.6 | 14.2 |
-| PAN No (left) | 13.0 | 3.7 |
-| PAN No (right) | 13.0 | 13.2 |
-| Bill To box | 9.4 | 1.5  (W 8.0, H 2.6) |
-| Ship To box | 9.4 | 11.1 (W 8.0, H 2.6) |
+## Business rules
+- Cement HSN **25232930**, **GST 18% (9% CGST + 9% SGST)**.
+- 1 MT = 20 bags (editable).
+- Price/Bag entered is **inclusive of GST**; taxable, tax split, and grand total are derived.
+- Amount-in-words: Bill Amount + Total GST (Indian numbering).
+- Letterhead blank band default **4.0 cm** (editable).
 
-Other fields (Week No, Mode, Freight, Transporter, L.R., Vehicle, Driver, EWAY, TPCA, Region, Destination, Sub Total, Taxable, Central/State Tax, Total GST, Grand Total, Bill Amount) and line-item rows have reasonable defaults that the user can adjust on the Settings page.
+## Implemented (2026-06)
+- Full-page GST invoice matching the reference bill: title, GSTIN/PAN/MSME, place-of-supply/PO/invoice, Bill To/Ship To boxes, state/PAN/transport, line-item table (SrNo, Product Name, HSN, U.O.M, MT, No. of Bags, Rate Per MT, Cur, Amount), amount-in-words, driver/EWAY/valid-till, party code/region/destination, bank block, terms, totals block, live UPI QR, signature.
+- Company/bank/terms/GST%/letterhead editable in Settings (Supabase).
+- Verified via rendered PDF: sample matches reference (Taxable ₹12,288.14, Total GST ₹2,211.86, Grand Total ₹14,500.00).
 
-## Implementation Status (Feb 2026)
-- [x] Settings CRUD with MongoDB persistence
-- [x] PDF generation using reportlab (Courier-Bold default — typewriter look)
-- [x] Fill Invoice form: 5 grouped sections, Bill/Ship To with "Same as Bill To" checkbox, dynamic line-items table (add/remove rows)
-- [x] Print Field Settings page: per-field Top/Left/Font Size/Bold + box width/height + line-items column lefts; Save / Reset buttons
-- [x] All endpoints tested (7/7 pytest pass, frontend e2e validated)
-
-## P1 Backlog (next)
-- Live invoice preview (overlay text on a faded image of the blank invoice for screen verification before printing)
-- Multiple template profiles (in case user has more than one printed format)
-- Export/import settings as JSON
-- Saved customer/Bill-To address book for auto-complete
-
-## P2 Backlog
-- Multi-user with login
-- Save filled invoices in DB for reprint/search
-- Bulk-fill via CSV upload
+## Backlog (P2)
+- Customer address book / quick auto-fill.
+- Multi-copy printing (Original / Duplicate / Triplicate labels).
+- Optional toggle to also print the letterhead header (for digital/email PDF copies).
+- Save/recall past invoices.

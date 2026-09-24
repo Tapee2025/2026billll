@@ -32,10 +32,30 @@ import {
 } from "lucide-react";
 import { fetchSettings } from "@/lib/settings";
 import { generatePdfBlob } from "@/lib/pdf";
-import { detectDevice, DEVICE_LABELS } from "@/lib/device";
 import { rupeesToWords, fmt } from "@/lib/numberToWords";
 
 const EMPTY_ROW = { product: "", no_of_bags: "", price_per_bag: "" };
+
+const FIELD_LABELS = {
+  po_no: "P.O. No",
+  po_date: "P.O. Date",
+  invoice_no: "Invoice No",
+  invoice_date: "Invoice Date",
+  pan_no_left: "PAN No (Bill To)",
+  pan_no_right: "PAN No (Ship To)",
+  week_no: "Week No",
+  mode_of_transport: "Mode of Transport",
+  freight: "Freight",
+  transporter_name: "Transporter Name",
+  lr_no: "L.R. No",
+  vehicle_no: "Vehicle No",
+  driver_mobile: "Driver Mobile",
+  eway_bill_no: "EWAY Bill No",
+  eway_valid_till: "EWAY Valid Till",
+  tpca_code: "Party Code",
+  region: "Region",
+  destination: "Destination",
+};
 
 const SINGLE_GROUPS = [
   {
@@ -45,7 +65,7 @@ const SINGLE_GROUPS = [
   },
   {
     title: "PAN Numbers",
-    description: "PAN under STATE CODE on both sides",
+    description: "Customer PAN under STATE CODE on both sides",
     fields: ["pan_no_left", "pan_no_right"],
   },
   {
@@ -62,26 +82,16 @@ const SINGLE_GROUPS = [
   },
   {
     title: "Bottom Block",
-    description: "Driver, EWAY, TPCA, Region, Destination",
+    description: "Driver, EWAY, Party Code, Region, Destination",
     fields: [
       "driver_mobile",
       "eway_bill_no",
+      "eway_valid_till",
       "tpca_code",
       "region",
       "destination",
     ],
   },
-];
-
-// Totals are auto-computed and not user-typed
-const AUTO_TOTAL_KEYS = [
-  "sub_total",
-  "taxable_amount",
-  "central_tax",
-  "state_tax",
-  "total_gst",
-  "grand_total",
-  "bill_amount",
 ];
 
 function computeRow(bags, price, bagsPerMt, gstPct) {
@@ -136,7 +146,7 @@ export default function FillInvoicePage() {
   }, [previewUrl]);
 
   const bagsPerMt = settings?.calculation?.bags_per_mt ?? 20;
-  const gstPct = settings?.calculation?.gst_percent ?? 18;
+  const gstPct = settings?.calculation?.gst_percent ?? 28;
 
   const computedRows = useMemo(
     () =>
@@ -160,15 +170,7 @@ export default function FillInvoicePage() {
     );
   }, [computedRows]);
 
-  const singleFieldLabels = useMemo(() => {
-    const map = {};
-    if (settings) {
-      Object.entries(settings.single_fields).forEach(([k, v]) => {
-        map[k] = v.label || k;
-      });
-    }
-    return map;
-  }, [settings]);
+  const singleFieldLabels = FIELD_LABELS;
 
   const handleSingleChange = (key, value) => {
     setSingleValues((prev) => ({ ...prev, [key]: value }));
@@ -200,47 +202,39 @@ export default function FillInvoicePage() {
   const buildPayload = () => {
     const finalShipTo = sameAsBillTo ? billTo : shipTo;
 
-    // Build line item rows with formatted strings (only filled rows)
-    const lineItemsForPdf = computedRows
+    const lineItems = computedRows
       .filter((r) => r.product || r.no_of_bags || r.price_per_bag)
-      .map((r) => ({
+      .map((r, i) => ({
+        sr: i + 1,
         product: (r.product || "").toUpperCase(),
         mt: r.mt ? fmt(r.mt, 2) : "",
-        no_of_bags: r.no_of_bags ? String(parseInt(r.no_of_bags) || r.no_of_bags) : "",
+        no_of_bags: r.no_of_bags
+          ? String(parseInt(r.no_of_bags) || r.no_of_bags)
+          : "",
         rate_per_mt: r.ratePerMt ? fmt(r.ratePerMt, 2) : "",
         amount: r.taxable ? fmt(r.taxable, 2) : "",
       }));
 
-    // Auto-compute totals as formatted strings
-    const autoTotals = {
-      sub_total: totals.subTotal ? fmt(totals.subTotal, 2) : "",
-      taxable_amount: totals.taxable ? fmt(totals.taxable, 2) : "",
-      central_tax: totals.central ? fmt(totals.central, 2) : "",
-      state_tax: totals.state ? fmt(totals.state, 2) : "",
-      total_gst: totals.central + totals.state
-        ? rupeesToWords(totals.central + totals.state)
-        : "",
-      grand_total: totals.grand ? fmt(totals.grand, 2) : "",
-      bill_amount: totals.grand ? rupeesToWords(totals.grand) : "",
-    };
-
-    // Merge user-typed singles with auto totals (auto wins for total keys)
-    const merged = { ...singleValues };
-    for (const k of AUTO_TOTAL_KEYS) merged[k] = autoTotals[k];
-
     return {
-      single_values: merged,
+      fields: singleValues,
       bill_to: billTo,
       ship_to: finalShipTo,
-      line_items: lineItemsForPdf,
+      line_items: lineItems,
+      totals: {
+        sub_total: totals.subTotal,
+        taxable: totals.taxable,
+        central: totals.central,
+        state: totals.state,
+        gst: totals.central + totals.state,
+        grand: totals.grand,
+      },
     };
   };
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const device = detectDevice();
-      const blob = generatePdfBlob(settings, buildPayload(), device);
+      const blob = await generatePdfBlob(settings, buildPayload());
       // Revoke any previous URL
       if (previewUrl) window.URL.revokeObjectURL(previewUrl);
       const url = window.URL.createObjectURL(blob);
@@ -256,11 +250,9 @@ export default function FillInvoicePage() {
     }
   };
 
-  const activeDevice = detectDevice();
-
   const downloadFile = () => {
     if (!previewBlob) return;
-    const invoiceNo = singleValues.invoice_no || "overlay";
+    const invoiceNo = singleValues.invoice_no || "invoice";
     const url = window.URL.createObjectURL(previewBlob);
     const a = document.createElement("a");
     a.href = url;
@@ -306,9 +298,10 @@ export default function FillInvoicePage() {
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Fill Invoice</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Enter the fields below. The app generates an A4 PDF with only the
-          field text positioned correctly — print it on your pre-printed
-          invoice paper. <strong>Tax & totals are auto-calculated</strong>.
+          Enter the details below and generate a complete A4 GST tax invoice.
+          It prints on <strong>blank letterhead paper</strong> — the top{" "}
+          {settings?.letterhead_cm ?? 4} cm is left blank for your pre-printed
+          letterhead. <strong>Tax &amp; totals are auto-calculated</strong>.
         </p>
       </div>
 
@@ -583,14 +576,7 @@ export default function FillInvoicePage() {
 
       <Separator />
 
-      <div className="flex items-center justify-between gap-3 sticky bottom-4 z-10 flex-wrap">
-        <div className="text-xs text-muted-foreground bg-card border border-border rounded-md px-3 py-2 shadow-sm" data-testid="active-device">
-          Active calibration profile:{" "}
-          <span className="font-semibold text-foreground">
-            {DEVICE_LABELS[activeDevice]}
-          </span>{" "}
-          (auto-detected)
-        </div>
+      <div className="flex items-center justify-end gap-3 sticky bottom-4 z-10 flex-wrap">
         <Button
           size="lg"
           onClick={handleGenerate}
@@ -603,7 +589,7 @@ export default function FillInvoicePage() {
           ) : (
             <FileText className="w-4 h-4 mr-2" />
           )}
-          Generate Print Preview
+          Generate Invoice Preview
         </Button>
       </div>
 
@@ -616,26 +602,14 @@ export default function FillInvoicePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Printer className="w-5 h-5" />
-              Print Preview — A4 Overlay
+              Invoice Preview — A4 Full Page
             </DialogTitle>
             <DialogDescription>
-              {activeDevice === "iphone" ? (
-                <>
-                  <strong>iPhone tip:</strong> tap{" "}
-                  <strong>Open in New Tab</strong> below → then tap{" "}
-                  <strong>Share → Print</strong>. In the iOS Print panel,
-                  pinch the preview thumbnail to zoom; if alignment is off,
-                  calibrate the iPhone profile in Settings.
-                </>
-              ) : (
-                <>
-                  This is exactly what will print onto your pre-printed
-                  invoice paper. Click <strong>Print</strong> to send directly
-                  to your printer, or <strong>Download</strong> to save the
-                  PDF file. In the print dialog set Scale = 100% (Actual
-                  Size).
-                </>
-              )}
+              This is the complete invoice. Load your{" "}
+              <strong>blank letterhead paper</strong> in the printer, click{" "}
+              <strong>Print</strong>, and set{" "}
+              <strong>Scale = 100% (Actual Size)</strong> with margins set to
+              None/Default so the layout lines up under your letterhead.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0 bg-secondary rounded-md overflow-hidden">
