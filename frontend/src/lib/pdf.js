@@ -48,7 +48,7 @@ export async function generatePdfBlob(settings, data) {
 
   // ===== Title (above the box) =====
   setFont(true, 13);
-  doc.text("TAX INVOICE", PAGE_W / 2, 4.35 + S, { align: "center", charSpace: 0.06 });
+  doc.text("TAX INVOICE", PAGE_W / 2, 4.35 + S, { align: "center" });
   setFont(false, 8);
   text("Original", MR - 0.1, 4.35, { align: "right" });
 

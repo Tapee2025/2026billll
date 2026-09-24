@@ -146,7 +146,7 @@ export default function FillInvoicePage() {
   }, [previewUrl]);
 
   const bagsPerMt = settings?.calculation?.bags_per_mt ?? 20;
-  const gstPct = settings?.calculation?.gst_percent ?? 28;
+  const gstPct = settings?.calculation?.gst_percent ?? 18;
 
   const computedRows = useMemo(
     () =>
