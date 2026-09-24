@@ -79,6 +79,17 @@ export function rupeesToWords(num) {
   return result + " Only";
 }
 
+// Reference-bill style: no "Rupees" prefix, "And <paise> Paise Only".
+export function amountWords(num) {
+  if (num === null || num === undefined || isNaN(num)) return "";
+  const n = Math.max(0, Number(num));
+  const intPart = Math.floor(n);
+  const paisa = Math.round((n - intPart) * 100);
+  let result = intPart === 0 ? "Zero" : inWordsIndian(intPart);
+  if (paisa > 0) result += " And " + below100(paisa) + " Paise";
+  return result + " Only";
+}
+
 export function fmt(num, decimals = 2) {
   if (num === null || num === undefined || isNaN(num)) return "";
   return Number(num).toLocaleString("en-IN", {

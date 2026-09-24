@@ -59,9 +59,9 @@ const FIELD_LABELS = {
 
 const SINGLE_GROUPS = [
   {
-    title: "Header",
-    description: "Fields printed at the top of the invoice",
-    fields: ["po_no", "po_date", "invoice_no", "invoice_date"],
+    title: "Invoice Details",
+    description: "Printed at the top of the invoice",
+    fields: ["invoice_no", "invoice_date", "po_date"],
   },
   {
     title: "PAN Numbers",
@@ -70,27 +70,13 @@ const SINGLE_GROUPS = [
   },
   {
     title: "Transport",
-    description: "Week No / Mode / Freight / Transporter / L.R. / Vehicle",
-    fields: [
-      "week_no",
-      "mode_of_transport",
-      "freight",
-      "transporter_name",
-      "lr_no",
-      "vehicle_no",
-    ],
+    description: "Week No and Vehicle No",
+    fields: ["week_no", "vehicle_no"],
   },
   {
-    title: "Bottom Block",
-    description: "Driver, EWAY, Party Code, Region, Destination",
-    fields: [
-      "driver_mobile",
-      "eway_bill_no",
-      "eway_valid_till",
-      "tpca_code",
-      "region",
-      "destination",
-    ],
+    title: "E-Way & Delivery",
+    description: "EWAY Bill No / Valid Till / Region / Destination",
+    fields: ["eway_bill_no", "eway_valid_till", "region", "destination"],
   },
 ];
 
@@ -298,10 +284,11 @@ export default function FillInvoicePage() {
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Fill Invoice</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Enter the details below and generate a complete A4 GST tax invoice.
-          It prints on <strong>blank letterhead paper</strong> — the top{" "}
-          {settings?.letterhead_cm ?? 4} cm is left blank for your pre-printed
-          letterhead. <strong>Tax &amp; totals are auto-calculated</strong>.
+          Enter the details below. The values are placed directly onto your{" "}
+          <strong>official invoice template</strong> (letterhead, boxes,
+          product, bank, QR and terms are already part of it).{" "}
+          <strong>Tax &amp; totals are auto-calculated</strong>. Print on plain
+          A4 at <strong>100% (Actual Size)</strong>.
         </p>
       </div>
 
@@ -605,11 +592,10 @@ export default function FillInvoicePage() {
               Invoice Preview — A4 Full Page
             </DialogTitle>
             <DialogDescription>
-              This is the complete invoice. Load your{" "}
-              <strong>blank letterhead paper</strong> in the printer, click{" "}
-              <strong>Print</strong>, and set{" "}
+              This is your official invoice template with the data filled in.
+              Load plain A4 paper, click <strong>Print</strong>, and set{" "}
               <strong>Scale = 100% (Actual Size)</strong> with margins set to
-              None/Default so the layout lines up under your letterhead.
+              None/Default.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0 bg-secondary rounded-md overflow-hidden">
