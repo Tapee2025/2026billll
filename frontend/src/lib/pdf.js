@@ -27,6 +27,19 @@ export async function generatePdfBlob(settings, data) {
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const black = rgb(0, 0, 0);
 
+  // Blank out the pre-printed letterhead band at the top so the invoice can be
+  // printed on the customer's own letterhead paper. The letterhead graphic ends
+  // at ~105 pts (~3.7 cm); we cover up to 109 pts (just above the "TAX INVOICE"
+  // line at 110.8 pts) so nothing else is affected.
+  const LETTERHEAD_COVER_PTS = 109;
+  page.drawRectangle({
+    x: 0,
+    y: PAGE_H - LETTERHEAD_COVER_PTS,
+    width: page.getWidth(),
+    height: LETTERHEAD_COVER_PTS,
+    color: rgb(1, 1, 1),
+  });
+
   // draw text; `yt` is the baseline distance from the TOP of the page (matches
   // the coordinates extracted from the template labels).
   const draw = (text, x, yt, opts = {}) => {
