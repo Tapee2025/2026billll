@@ -1,12 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import FillInvoicePage from "@/pages/FillInvoicePage";
 import SettingsPage from "@/pages/SettingsPage";
-import { Printer, Settings as SettingsIcon, FileText } from "lucide-react";
+import LoginPage from "@/pages/LoginPage";
+import { Button } from "@/components/ui/button";
+import {
+  Printer,
+  Settings as SettingsIcon,
+  FileText,
+  LogOut,
+} from "lucide-react";
+import { isAuthenticated, logout } from "@/lib/auth";
 
-function Header() {
+function Header({ onLogout }) {
   const linkClass = ({ isActive }) =>
     `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
       isActive
@@ -24,17 +32,6 @@ function Header() {
           <div className="w-10 h-10 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
             <Printer className="w-5 h-5" />
           </div>
-          <div>
-            <h1
-              className="text-lg font-bold tracking-tight"
-              data-testid="app-title"
-            >
-              GST Tax Invoice Generator
-            </h1>
-            <p className="text-xs text-muted-foreground mono">
-              A4 · Full invoice on letterhead paper
-            </p>
-          </div>
         </div>
         <nav className="flex items-center gap-2" data-testid="main-nav">
           <NavLink to="/" end className={linkClass} data-testid="nav-fill">
@@ -49,6 +46,15 @@ function Header() {
             <SettingsIcon className="w-4 h-4" />
             Company Settings
           </NavLink>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLogout}
+            data-testid="nav-logout"
+          >
+            <LogOut className="w-4 h-4" />
+            Log Out
+          </Button>
         </nav>
       </div>
     </header>
@@ -56,10 +62,21 @@ function Header() {
 }
 
 function App() {
+  const [authed, setAuthed] = useState(isAuthenticated());
+
+  if (!authed) {
+    return <LoginPage onLogin={() => setAuthed(true)} />;
+  }
+
+  const handleLogout = () => {
+    logout();
+    setAuthed(false);
+  };
+
   return (
     <div className="App paper-bg">
       <BrowserRouter>
-        <Header />
+        <Header onLogout={handleLogout} />
         <main className="max-w-6xl mx-auto px-4 py-8">
           <Routes>
             <Route path="/" element={<FillInvoicePage />} />
